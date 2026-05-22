@@ -28,6 +28,12 @@
 @layer base {
   body {
     @apply bg-zinc-950 text-zinc-100 antialiased;
+    background-image: radial-gradient(
+      ellipse 80% 60% at 50% -10%,
+      rgb(109 40 217 / 0.18) 0%,
+      transparent 70%
+    );
+    background-attachment: fixed;
   }
 }
 

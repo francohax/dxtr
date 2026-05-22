@@ -68,3 +68,23 @@ export async function fetchMove(nameOrId: string | number): Promise<MoveDetail> 
     pp: raw.pp,
   };
 }
+
+export async function fetchAllPokemonNames(): Promise<string[]> {
+  const res = await fetch(
+    "https://pokeapi.co/api/v2/pokemon?limit=1302&offset=0",
+    { next: { revalidate: 604800 } }
+  );
+  if (!res.ok) throw new Error(`PokeAPI ${res.status}: pokemon list`);
+  const data = (await res.json()) as { results: { name: string }[] };
+  return data.results.map(p => p.name);
+}
+
+export async function fetchAllMoveNames(): Promise<string[]> {
+  const res = await fetch(
+    "https://pokeapi.co/api/v2/move?limit=937&offset=0",
+    { next: { revalidate: 604800 } }
+  );
+  if (!res.ok) throw new Error(`PokeAPI ${res.status}: move list`);
+  const data = (await res.json()) as { results: { name: string }[] };
+  return data.results.map(m => m.name);
+}

@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { fetchPokemon, fetchMove } from "~/lib/pokeapi";
+import { fetchPokemon, fetchMove, fetchAllPokemonNames, fetchAllMoveNames } from "~/lib/pokeapi";
 
 export const pokemonRouter = createTRPCRouter({
   search: publicProcedure
@@ -29,4 +29,12 @@ export const pokemonRouter = createTRPCRouter({
         });
       }
     }),
+
+  listNames: publicProcedure.query(async () => {
+    return fetchAllPokemonNames();
+  }),
+
+  listMoveNames: publicProcedure.query(async () => {
+    return fetchAllMoveNames();
+  }),
 });

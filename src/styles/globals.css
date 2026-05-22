@@ -3,4 +3,30 @@
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Pokemon type colours */
+  --color-type-normal:   #A8A878;
+  --color-type-fire:     #F08030;
+  --color-type-water:    #6890F0;
+  --color-type-electric: #F8D030;
+  --color-type-grass:    #78C850;
+  --color-type-ice:      #98D8D8;
+  --color-type-fighting: #C03028;
+  --color-type-poison:   #A040A0;
+  --color-type-ground:   #E0C068;
+  --color-type-flying:   #A890F0;
+  --color-type-psychic:  #F85888;
+  --color-type-bug:      #A8B820;
+  --color-type-rock:     #B8A038;
+  --color-type-ghost:    #705898;
+  --color-type-dragon:   #7038F8;
+  --color-type-dark:     #705848;
+  --color-type-steel:    #B8B8D0;
+  --color-type-fairy:    #EE99AC;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+  }
 }

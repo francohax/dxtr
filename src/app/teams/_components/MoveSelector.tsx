@@ -24,6 +24,7 @@ export function MoveSelector({ moveNames, selectedMoves, onToggle }: MoveSelecto
     <div className="flex flex-col gap-3">
       <input
         type="text"
+        autoFocus
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Filter moves…"

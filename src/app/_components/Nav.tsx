@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/teams",      label: "Team Builder" },
-  { href: "/my-teams",   label: "My Teams" },
   { href: "/calculator", label: "Damage Calc" },
 ];
 

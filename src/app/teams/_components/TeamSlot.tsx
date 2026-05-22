@@ -8,14 +8,20 @@ interface TeamSlotProps {
   position: number;
   pokemon: PokemonSummary | null;
   moves: MoveDetail[];
+  nature: string;
+  isActive: boolean;
   onRemove: () => void;
-  onEditMoves: () => void;
+  onConfigure: () => void;
 }
 
-export function TeamSlot({ position, pokemon, moves, onRemove, onEditMoves }: TeamSlotProps) {
+export function TeamSlot({ position, pokemon, moves, nature, isActive, onRemove, onConfigure }: TeamSlotProps) {
   if (!pokemon) {
     return (
-      <div className="flex h-36 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-800 text-zinc-600 transition hover:border-zinc-700">
+      <div className={`flex h-36 flex-col items-center justify-center rounded-2xl border-2 border-dashed transition ${
+        isActive
+          ? "border-violet-500 bg-violet-950/20 text-violet-400"
+          : "border-zinc-800 text-zinc-600 hover:border-zinc-700"
+      }`}>
         <span className="text-2xl">+</span>
         <span className="text-xs">Slot {position + 1}</span>
       </div>
@@ -45,6 +51,7 @@ export function TeamSlot({ position, pokemon, moves, onRemove, onEditMoves }: Te
           <div className="flex flex-wrap gap-1">
             {pokemon.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
           </div>
+          <span className="text-xs capitalize text-zinc-500">{nature}</span>
         </div>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -59,10 +66,10 @@ export function TeamSlot({ position, pokemon, moves, onRemove, onEditMoves }: Te
         )}
       </div>
       <button
-        onClick={onEditMoves}
+        onClick={onConfigure}
         className="mt-1 w-full rounded-lg bg-zinc-800 py-1 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
       >
-        {moves.length === 0 ? "Assign moves" : "Edit moves"}
+        Configure
       </button>
     </div>
   );

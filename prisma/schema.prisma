@@ -17,16 +17,31 @@ model Team {
 }
 
 model TeamSlot {
-    id        Int            @id @default(autoincrement())
-    position  Int
-    teamId    Int
-    pokeApiId Int
-    name      String
-    sprite    String
-    types     String[]
+    id         Int            @id @default(autoincrement())
+    position   Int
+    teamId     Int
+    pokeApiId  Int
+    name       String
+    sprite     String
+    types      String[]
 
-    team      Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    moves     TeamSlotMove[]
+    nature     String         @default("hardy")
+    evHp       Int            @default(0)
+    evAtk      Int            @default(0)
+    evDef      Int            @default(0)
+    evSpAtk    Int            @default(0)
+    evSpDef    Int            @default(0)
+    evSpeed    Int            @default(0)
+    ivHp       Int            @default(0)
+    ivAtk      Int            @default(0)
+    ivDef      Int            @default(0)
+    ivSpAtk    Int            @default(0)
+    ivSpDef    Int            @default(0)
+    ivSpeed    Int            @default(0)
+    ivsEnabled Boolean        @default(false)
+
+    team       Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    moves      TeamSlotMove[]
 
     @@unique([teamId, position])
 }

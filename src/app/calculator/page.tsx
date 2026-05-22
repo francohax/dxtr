@@ -1,3 +1,5 @@
+import { DamageCalculator } from "./_components/DamageCalculator";
+
 export default function CalculatorPage() {
   return (
     <div>
@@ -7,7 +9,9 @@ export default function CalculatorPage() {
           Simulate damage at level 50 with base stats.
         </p>
       </div>
-      <p className="text-zinc-500">Coming soon — damage calculator.</p>
+      <div className="max-w-xl">
+        <DamageCalculator />
+      </div>
     </div>
   );
 }

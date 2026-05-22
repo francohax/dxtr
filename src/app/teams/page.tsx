@@ -1,3 +1,5 @@
+import { TeamBuilder } from "./_components/TeamBuilder";
+
 export default function TeamsPage() {
   return (
     <div>
@@ -7,7 +9,7 @@ export default function TeamsPage() {
           Search for Pokemon, assign movesets, then save your team.
         </p>
       </div>
-      <p className="text-zinc-500">Coming soon — team builder UI.</p>
+      <TeamBuilder />
     </div>
   );
 }

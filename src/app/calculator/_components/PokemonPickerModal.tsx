@@ -41,6 +41,7 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
   const [localEvs, setLocalEvs]       = useState<Record<string, number>>(emptyEvs);
   const [localStages, setLocalStages] = useState<Record<string, number>>(emptyStages);
   const [sessionPicks, setSessionPicks] = useState<VgcPick[]>([]);
+  const [championsOnly, setChampionsOnly] = useState(true);
 
   const inputRef       = useRef<HTMLInputElement>(null);
   const onSelectRef    = useRef(onSelect);    onSelectRef.current    = onSelect;
@@ -126,19 +127,27 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const championsSet = useMemo(
+    () => new Set(vgcData.map(p => p.name)),
+    [vgcData],
+  );
+
   const matches = useMemo(() => {
     const hasQuery  = query.length >= 2;
     const hasFilter = typeFilters.length > 0;
     if (!hasQuery && !hasFilter) return [];
     const q = query.toLowerCase().replace(/\s/g, "-");
-    return allSummaries
+    const pool = championsOnly && championsSet.size > 0
+      ? allSummaries.filter(s => championsSet.has(s.name))
+      : allSummaries;
+    return pool
       .filter(s => {
         const nameMatch = !hasQuery  || s.name.includes(q);
         const typeMatch = !hasFilter || typeFilters.every(f => s.types.includes(f));
         return nameMatch && typeMatch;
       })
       .slice(0, 20);
-  }, [query, allSummaries, typeFilters]);
+  }, [query, allSummaries, typeFilters, championsOnly, championsSet]);
 
   const { activeIndex } = useListKeyboard({
     count: matches.length,
@@ -215,6 +224,24 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
               </div>
             </div>
           )}
+
+          {/* Champions-only toggle */}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-zinc-400">Champions Only</span>
+              <span className="text-[10px] text-zinc-600">
+                {championsOnly ? "Showing VGC Champions pool" : "All Pokémon"}
+              </span>
+            </div>
+            <button
+              role="switch"
+              aria-checked={championsOnly}
+              onClick={() => setChampionsOnly(v => !v)}
+              className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${championsOnly ? "bg-violet-600" : "bg-zinc-700 hover:bg-zinc-600"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${championsOnly ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
+          </div>
 
           {/* Search input */}
           <div className="relative">

@@ -1,4 +1,4 @@
-import { type PokemonType } from "~/lib/types";
+import { type PokemonType, type Weather, type Terrain } from "~/lib/types";
 
 export interface DamageInput {
   level: number;
@@ -7,6 +7,10 @@ export interface DamageInput {
   defenseStat: number;
   stab: boolean;
   typeEffectiveness: number;
+  moveType?: PokemonType;
+  weather?: Weather;
+  terrain?: Terrain;
+  isCritical?: boolean;
 }
 
 export interface DamageResult {
@@ -17,13 +21,35 @@ export interface DamageResult {
   typeEffectiveness: number;
   baseDamage: number;
   modifiedBeforeRandom: number;
+  weatherMult: number;
+  terrainMult: number;
+  critMult: number;
+}
+
+function getWeatherMult(weather: Weather | undefined, moveType: PokemonType | undefined): number {
+  if (!weather || weather === "none" || !moveType) return 1;
+  if (weather === "sun")  { if (moveType === "fire")  return 1.5; if (moveType === "water") return 0.5; }
+  if (weather === "rain") { if (moveType === "water") return 1.5; if (moveType === "fire")  return 0.5; }
+  return 1;
+}
+
+function getTerrainMult(terrain: Terrain | undefined, moveType: PokemonType | undefined): number {
+  if (!terrain || terrain === "none" || !moveType) return 1;
+  if (terrain === "electric" && moveType === "electric") return 1.3;
+  if (terrain === "grassy"   && moveType === "grass")    return 1.3;
+  if (terrain === "psychic"  && moveType === "psychic")  return 1.3;
+  if (terrain === "misty"    && moveType === "dragon")   return 0.5;
+  return 1;
 }
 
 export function calculateDamage(input: DamageInput): DamageResult {
-  const { level, power, attackStat, defenseStat, stab, typeEffectiveness } = input;
-  const stabMult = stab ? 1.5 : 1.0;
-  const base = (((2 * level) / 5 + 2) * power * (attackStat / defenseStat)) / 50 + 2;
-  const modified = base * stabMult * typeEffectiveness;
+  const { level, power, attackStat, defenseStat, stab, typeEffectiveness, moveType, weather, terrain, isCritical } = input;
+  const stabMult    = stab ? 1.5 : 1.0;
+  const weatherMult = getWeatherMult(weather, moveType);
+  const terrainMult = getTerrainMult(terrain, moveType);
+  const critMult    = isCritical ? 1.5 : 1.0;
+  const base     = (((2 * level) / 5 + 2) * power * (attackStat / defenseStat)) / 50 + 2;
+  const modified = base * stabMult * typeEffectiveness * weatherMult * terrainMult * critMult;
   return {
     min: Math.floor(modified * 0.85),
     max: Math.floor(modified),
@@ -32,6 +58,9 @@ export function calculateDamage(input: DamageInput): DamageResult {
     typeEffectiveness,
     baseDamage: Math.floor(base),
     modifiedBeforeRandom: modified,
+    weatherMult,
+    terrainMult,
+    critMult,
   };
 }
 

@@ -94,6 +94,24 @@ export function DamageResultCard({
             value={`×${result.typeEffectiveness}`}
             highlight={result.typeEffectiveness !== 1}
           />
+          {result.weatherMult !== 1 && (
+            <>
+              <span className="text-zinc-600">×</span>
+              <ModifierPill label="Weather" value={`×${result.weatherMult}`} highlight />
+            </>
+          )}
+          {result.terrainMult !== 1 && (
+            <>
+              <span className="text-zinc-600">×</span>
+              <ModifierPill label="Terrain" value={`×${result.terrainMult}`} highlight />
+            </>
+          )}
+          {result.critMult !== 1 && (
+            <>
+              <span className="text-zinc-600">×</span>
+              <ModifierPill label="Crit" value={`×${result.critMult}`} highlight />
+            </>
+          )}
           <span className="text-zinc-600">=</span>
           <ModifierPill label="Pre-roll" value={String(Math.floor(result.modifiedBeforeRandom))} />
         </div>

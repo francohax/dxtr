@@ -59,3 +59,20 @@ export interface TeamConfig {
   name: string;
   slots: TeamSlotConfig[];
 }
+
+export type Weather = "none" | "sun" | "rain" | "sandstorm" | "hail";
+export type Terrain = "none" | "electric" | "grassy" | "psychic" | "misty";
+
+export interface BattleConfig {
+  level: number;
+  weather: Weather;
+  terrain: Terrain;
+  isCritical: boolean;
+}
+
+export const DEFAULT_BATTLE_CONFIG: BattleConfig = {
+  level: 50,
+  weather: "none",
+  terrain: "none",
+  isCritical: false,
+};

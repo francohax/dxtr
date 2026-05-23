@@ -6,6 +6,7 @@ import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { StatBar } from "~/app/_components/StatBar";
 import { TypeFilterBar, HOTKEY_MAP } from "./TypeFilterBar";
+import { useListKeyboard } from "~/hooks/useListKeyboard";
 import { type PokemonSummary, type PokemonType } from "~/lib/types";
 
 interface PokemonPickerModalProps {
@@ -44,9 +45,15 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
         const typeMatch = !hasFilter || typeFilters.every((f) => s.types.includes(f));
         return nameMatch && typeMatch;
       })
-      .slice(0, 20)
-      .map((s) => s.name);
+      .slice(0, 20);
   }, [query, allSummaries, typeFilters]);
+
+  const { activeIndex } = useListKeyboard({
+    count: matches.length,
+    onConfirm: (i) => { const s = matches[i]; if (s) pick(s.name); },
+    onEscape: onClose,
+    enabled: matches.length > 0 && !chosen,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 50);
@@ -122,13 +129,28 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
           />
           {matches.length > 0 && !chosen && (
             <ul className="absolute top-full z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl">
-              {matches.map((name) => (
-                <li key={name}>
+              {matches.map((s, i) => (
+                <li key={s.name}>
                   <button
-                    onClick={() => pick(name)}
-                    className="w-full px-4 py-1.5 text-left text-sm capitalize transition hover:bg-zinc-800"
+                    onClick={() => pick(s.name)}
+                    className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition hover:bg-zinc-800 ${
+                      i === activeIndex ? "bg-zinc-800" : ""
+                    }`}
                   >
-                    {name.replace(/-/g, " ")}
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-800/80">
+                      <Image
+                        src={s.sprite}
+                        alt={s.name}
+                        width={24}
+                        height={24}
+                        unoptimized
+                        className="drop-shadow-sm"
+                      />
+                    </div>
+                    <span className="flex-1 capitalize text-zinc-300">{s.name.replace(/-/g, " ")}</span>
+                    <div className="flex gap-1">
+                      {(s.types as PokemonType[]).map(t => <TypeBadge key={t} type={t} size="sm" />)}
+                    </div>
                   </button>
                 </li>
               ))}

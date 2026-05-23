@@ -36,10 +36,10 @@ export const pokemonRouter = createTRPCRouter({
     return rows.map((r) => r.name);
   }),
 
-  // { name, types }[] for every cached Pokemon — used by the type-filter picker.
+  // { id, name, types, sprite }[] for every cached Pokemon — used by the type-filter picker and search rows.
   listSummaries: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.cachedPokemon.findMany({
-      select: { name: true, types: true },
+      select: { id: true, name: true, types: true, sprite: true },
       orderBy: { id: "asc" },
     });
   }),

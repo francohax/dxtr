@@ -8,6 +8,7 @@ import { type DamageResult } from "~/lib/damage";
 import { type PokemonSummary, type MoveDetail, type PokemonType, type BattleConfig, DEFAULT_BATTLE_CONFIG } from "~/lib/types";
 import { DamageResultCard } from "./DamageResult";
 import { TypeBadge } from "~/app/_components/TypeBadge";
+import { GlassLoader } from "~/app/_components/GlassLoader";
 import { PokemonPickerModal } from "./PokemonPickerModal";
 import { MoveFuzzySearch } from "./MoveFuzzySearch";
 import { BattleConfigPanel } from "./BattleConfigPanel";
@@ -24,6 +25,7 @@ interface PokemonSlotCardProps {
 }
 
 function PokemonSlotCard({ label, value, onOpenPicker }: PokemonSlotCardProps) {
+  const typeColor = value?.types[0] ? `var(--color-type-${value.types[0]})` : undefined;
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">{label}</span>
@@ -33,7 +35,8 @@ function PokemonSlotCard({ label, value, onOpenPicker }: PokemonSlotCardProps) {
           tabIndex={0}
           onClick={onOpenPicker}
           onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpenPicker(); }}
-          className="group relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 transition hover:border-zinc-700"
+          style={typeColor ? { "--type-glow": typeColor } as React.CSSProperties : undefined}
+          className="group relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-zinc-700/50 bg-zinc-800/30 p-4 backdrop-blur-sm transition hover:border-[var(--type-glow,theme(colors.zinc.600))] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--type-glow,transparent)_20%,transparent)]"
         >
           <div className="relative flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-800/80">
             <Image src={value.sprite} alt={value.name} width={72} height={72} unoptimized className="drop-shadow-lg" />
@@ -44,7 +47,6 @@ function PokemonSlotCard({ label, value, onOpenPicker }: PokemonSlotCardProps) {
               {value.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
             </div>
           </div>
-          {/* Change hint on hover */}
           <div className="absolute inset-x-0 bottom-0 flex items-center justify-center rounded-b-2xl bg-zinc-800/0 py-1.5 opacity-0 transition group-hover:bg-zinc-800/60 group-hover:opacity-100">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Change</span>
           </div>
@@ -52,7 +54,7 @@ function PokemonSlotCard({ label, value, onOpenPicker }: PokemonSlotCardProps) {
       ) : (
         <button
           onClick={onOpenPicker}
-          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/50 py-5 transition hover:border-violet-600/60 hover:bg-violet-950/10"
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-700/60 bg-zinc-800/20 py-5 backdrop-blur-sm transition hover:border-violet-500/60 hover:bg-violet-900/10"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-zinc-700 text-zinc-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -75,6 +77,7 @@ export function DamageCalculator() {
   const [move, setMove] = useState<MoveDetail | null>(null);
   const [result, setResult] = useState<{ dmg: DamageResult; move: MoveDetail } | null>(null);
   const [battleConfig, setBattleConfig] = useState<BattleConfig>(DEFAULT_BATTLE_CONFIG);
+  const [isRandomizing, setIsRandomizing] = useState(false);
 
   const [attackerModalOpen, setAttackerModalOpen] = useState(false);
   const [defenderModalOpen, setDefenderModalOpen] = useState(false);
@@ -85,7 +88,10 @@ export function DamageCalculator() {
     return stored === null ? true : stored === "true";
   });
 
-  const { data: allNames = [] } = api.pokemon.listNames.useQuery(undefined, { staleTime: Infinity });
+  const { data: allNames = [], isLoading: namesLoading } = api.pokemon.listNames.useQuery(
+    undefined,
+    { staleTime: Infinity },
+  );
   const utils = api.useUtils();
 
   const moveInputRef = useRef<HTMLInputElement>(null);
@@ -114,6 +120,7 @@ export function DamageCalculator() {
 
   const randomizeBattle = useCallback(async () => {
     if (allNames.length === 0) return;
+    setIsRandomizing(true);
 
     const pick = () => allNames[Math.floor(Math.random() * allNames.length)]!;
     const attName = pick();
@@ -142,6 +149,8 @@ export function DamageCalculator() {
         // skip unavailable moves
       }
     }
+
+    setIsRandomizing(false);
   }, [allNames, utils]);
 
   const hasRandomized = useRef(false);
@@ -168,116 +177,126 @@ export function DamageCalculator() {
   });
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-6">
 
-      {/* Random battle toggle */}
-      <div className="flex items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-zinc-200">Random Battle</span>
-          <span className="text-xs text-zinc-600">
-            {randomEnabled ? "Auto-loads a random matchup" : "Manual input mode"}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          {randomEnabled && (
+      {/* ── LEFT COLUMN: random toggle + Pokemon pickers ── */}
+      <div className="flex flex-col gap-4">
+
+        {/* Random battle toggle */}
+        <div className="relative flex items-center justify-between rounded-xl border border-zinc-700/50 bg-zinc-800/30 px-4 py-3 backdrop-blur-sm">
+          {namesLoading && <GlassLoader />}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-zinc-200">Random Battle</span>
+            <span className="text-xs text-zinc-600">
+              {randomEnabled ? "Auto-loads a random matchup" : "Manual input mode"}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {randomEnabled && (
+              <button
+                onClick={() => void randomizeBattle()}
+                disabled={allNames.length === 0}
+                className="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-violet-700 hover:text-violet-400 disabled:opacity-40"
+              >
+                ↺ Reroll
+              </button>
+            )}
             <button
-              onClick={() => void randomizeBattle()}
-              disabled={allNames.length === 0}
-              className="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-violet-700 hover:text-violet-400 disabled:opacity-40"
-            >
-              ↺ Reroll
-            </button>
-          )}
-          <button
-            role="switch"
-            aria-checked={randomEnabled}
-            onClick={() => {
-              const next = !randomEnabled;
-              setRandomEnabled(next);
-              sessionStorage.setItem(STORAGE_KEY, String(next));
-              if (next) void randomizeBattle();
-            }}
-            className={`relative h-6 w-11 rounded-full transition-colors duration-200 ${
-              randomEnabled ? "bg-violet-600" : "bg-zinc-800"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                randomEnabled ? "translate-x-5" : "translate-x-0"
+              role="switch"
+              aria-checked={randomEnabled}
+              onClick={() => {
+                const next = !randomEnabled;
+                setRandomEnabled(next);
+                sessionStorage.setItem(STORAGE_KEY, String(next));
+                if (next) void randomizeBattle();
+              }}
+              className={`relative h-6 w-11 rounded-full transition-colors duration-200 ${
+                randomEnabled ? "bg-violet-600" : "bg-zinc-800"
               }`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Pokemon pickers */}
-      <div className="relative grid grid-cols-2 gap-3">
-        <PokemonSlotCard
-          label="Attacker"
-          value={attacker}
-          onOpenPicker={() => setAttackerModalOpen(true)}
-        />
-
-        {/* VS badge */}
-        <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-xs font-black tracking-tight text-zinc-500 shadow-lg">
-            vs
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                  randomEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
         </div>
 
-        <PokemonSlotCard
-          label="Defender"
-          value={defender}
-          onOpenPicker={() => setDefenderModalOpen(true)}
-        />
+        {/* Pokemon pickers */}
+        <div className="relative grid grid-cols-2 gap-3">
+          {isRandomizing && <GlassLoader className="rounded-2xl" />}
+          <PokemonSlotCard
+            label="Attacker"
+            value={attacker}
+            onOpenPicker={() => setAttackerModalOpen(true)}
+          />
+          <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-xs font-black tracking-tight text-zinc-500 shadow-lg">
+              vs
+            </div>
+          </div>
+          <PokemonSlotCard
+            label="Defender"
+            value={defender}
+            onOpenPicker={() => setDefenderModalOpen(true)}
+          />
+        </div>
+
       </div>
 
-      {/* Move section */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Move</span>
-        <MoveFuzzySearch
-          moveNames={attacker?.moveNames ?? []}
-          value={move}
-          onSelect={m => { setMove(m); setResult(null); }}
-          onClear={() => { setMove(null); setResult(null); }}
-          inputRef={moveInputRef}
+      {/* ── RIGHT COLUMN: move + config + calculate + result ── */}
+      <div className="flex flex-col gap-4">
+
+        {/* Move section */}
+        <div className="glass-card flex flex-col gap-2 p-4">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Move</span>
+          <MoveFuzzySearch
+            moveNames={attacker?.moveNames ?? []}
+            value={move}
+            onSelect={m => { setMove(m); setResult(null); }}
+            onClear={() => { setMove(null); setResult(null); }}
+            inputRef={moveInputRef}
+          />
+        </div>
+
+        {/* Battle config */}
+        <BattleConfigPanel
+          config={battleConfig}
+          onChange={c => { setBattleConfig(c); setResult(null); }}
         />
+
+        {/* Calculate */}
+        <button
+          type="button"
+          onClick={calculate}
+          disabled={!attacker || !defender || !move}
+          className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white shadow-lg shadow-violet-900/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+        >
+          Calculate Damage
+          <span className="ml-2 text-xs font-normal opacity-50">↵ Enter</span>
+        </button>
+
+        {/* Hotkey legend */}
+        <div className="flex justify-center gap-6 text-xs text-zinc-700">
+          <span><kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-600">↵</kbd> Calculate</span>
+          <span><kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-600">Ctrl K</kbd> Focus search</span>
+          <span><kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-600">1–0</kbd> Type filter</span>
+        </div>
+
+        {/* Result */}
+        {result && attacker && defender && (
+          <DamageResultCard
+            result={result.dmg}
+            moveName={result.move.name}
+            moveType={result.move.type}
+            attackerName={attacker.name}
+            defenderName={defender.name}
+            defenderBaseHp={defender.baseStats.hp}
+          />
+        )}
+
       </div>
-
-      {/* Battle config */}
-      <BattleConfigPanel
-        config={battleConfig}
-        onChange={c => { setBattleConfig(c); setResult(null); }}
-      />
-
-      {/* Calculate */}
-      <button
-        type="button"
-        onClick={calculate}
-        disabled={!attacker || !defender || !move}
-        className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white shadow-lg shadow-violet-900/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-      >
-        Calculate Damage
-        <span className="ml-2 text-xs font-normal opacity-50">↵ Enter</span>
-      </button>
-
-      {/* Hotkey legend */}
-      <div className="flex justify-center gap-6 text-xs text-zinc-700">
-        <span><kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-600">↵</kbd> Calculate</span>
-        <span><kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-600">Ctrl K</kbd> Focus search</span>
-        <span><kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-600">↺</kbd> Reroll</span>
-      </div>
-
-      {/* Result */}
-      {result && attacker && defender && (
-        <DamageResultCard
-          result={result.dmg}
-          moveName={result.move.name}
-          attackerName={attacker.name}
-          defenderName={defender.name}
-          defenderBaseHp={defender.baseStats.hp}
-        />
-      )}
 
       {/* Modals */}
       {attackerModalOpen && (

@@ -62,3 +62,18 @@ model TeamSlotMove {
 
     @@unique([teamSlotId, position])
 }
+
+model CachedPokemon {
+  id        Int      @id
+  name      String   @unique
+  sprite    String
+  types     String[]
+  hp        Int
+  attack    Int
+  defense   Int
+  spAttack  Int
+  spDefense Int
+  speed     Int
+  moveNames String[]
+  cachedAt  DateTime @updatedAt
+}

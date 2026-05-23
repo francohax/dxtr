@@ -29,7 +29,7 @@ export function BattleConfigPanel({ config, onChange }: BattleConfigPanelProps) 
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4">
+    <div className="glass-card p-4">
       <span className="mb-3 block text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
         Battle Config
       </span>

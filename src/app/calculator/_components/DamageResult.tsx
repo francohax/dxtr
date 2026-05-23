@@ -4,6 +4,7 @@ import { calcOhkoOdds, defenderHpAtL50 } from "~/lib/ohko";
 interface DamageResultCardProps {
   result: DamageResult;
   moveName: string;
+  moveType?: string;
   attackerName: string;
   defenderName: string;
   defenderBaseHp: number;
@@ -21,6 +22,7 @@ function ModifierPill({ label, value, highlight }: { label: string; value: strin
 export function DamageResultCard({
   result,
   moveName,
+  moveType,
   attackerName,
   defenderName,
   defenderBaseHp,
@@ -56,7 +58,15 @@ export function DamageResultCard({
                      "text-yellow-400";
 
   return (
-    <div className="animate-fade-in flex flex-col gap-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+    <div className="animate-fade-in relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-zinc-700/50 bg-zinc-800/30 p-6 backdrop-blur-sm">
+      {/* Move-type top accent */}
+      {moveType && (
+        <div
+          className="absolute inset-x-0 top-0 h-[2px] opacity-70"
+          style={{ background: `var(--color-type-${moveType})` }}
+        />
+      )}
+
       {/* Header */}
       <p className="text-sm text-zinc-400">
         <span className="font-semibold capitalize text-white">{attackerName}</span>
@@ -118,7 +128,7 @@ export function DamageResultCard({
       </div>
 
       {/* OHKO odds */}
-      <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
+      <div className="flex items-center justify-between rounded-xl border border-zinc-700/50 bg-zinc-900/50 px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-medium uppercase tracking-wider text-zinc-600">OHKO odds</span>
           <span className={`text-sm font-semibold ${ohkoColour}`}>{ohkoLabel}</span>

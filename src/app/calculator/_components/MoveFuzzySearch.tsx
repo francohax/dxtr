@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
+import { SkeletonBlock } from "~/app/_components/SkeletonBlock";
 import { type MoveDetail, type PokemonType } from "~/lib/types";
 
 interface MoveFuzzySearchProps {
@@ -90,9 +91,9 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef 
           className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 disabled:cursor-not-allowed disabled:opacity-40"
         />
         {loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500">
-            Loading…
-          </span>
+          <div className="absolute inset-y-0 right-3 flex items-center">
+            <SkeletonBlock className="h-4 w-20" />
+          </div>
         )}
       </div>
 

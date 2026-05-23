@@ -6,7 +6,7 @@ export default async function CalculatorPage() {
   return (
     <HydrateClient>
       <div className="flex flex-col items-center">
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-2xl lg:max-w-5xl">
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold tracking-tight">Damage Calculator</h1>
             <p className="mt-1 text-sm text-zinc-400">

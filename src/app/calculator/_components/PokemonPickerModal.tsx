@@ -5,6 +5,7 @@ import Image from "next/image";
 import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { StatBar } from "~/app/_components/StatBar";
+import { TypeFilterBar, HOTKEY_MAP } from "./TypeFilterBar";
 import { type PokemonSummary, type PokemonType } from "~/lib/types";
 
 interface PokemonPickerModalProps {
@@ -17,30 +18,60 @@ interface PokemonPickerModalProps {
 export function PokemonPickerModal({ label, current, onSelect, onClose }: PokemonPickerModalProps) {
   const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState<string | null>(null);
+  const [typeFilters, setTypeFilters] = useState<PokemonType[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: allNames = [] } = api.pokemon.listNames.useQuery(undefined, { staleTime: Infinity });
+  // listSummaries returns { name, types }[] — needed for type filtering.
+  const { data: allSummaries = [] } = api.pokemon.listSummaries.useQuery(undefined, {
+    staleTime: Infinity,
+  });
 
   const { data: pokemon, isFetching, error } = api.pokemon.search.useQuery(
     { query: chosen ?? "" },
-    { enabled: !!chosen, retry: false }
+    { enabled: !!chosen, retry: false },
   );
 
   const matches = useMemo(() => {
-    if (query.length < 2) return [];
+    const hasQuery = query.length >= 2;
+    const hasFilter = typeFilters.length > 0;
+    if (!hasQuery && !hasFilter) return [];
+
     const q = query.toLowerCase().replace(/\s/g, "-");
-    return allNames.filter(n => n.includes(q)).slice(0, 20);
-  }, [query, allNames]);
+    return allSummaries
+      .filter((s) => {
+        const nameMatch = !hasQuery || s.name.includes(q);
+        // AND logic: Pokemon must have ALL selected types (supports dual-type search).
+        const typeMatch = !hasFilter || typeFilters.every((f) => s.types.includes(f));
+        return nameMatch && typeMatch;
+      })
+      .slice(0, 20)
+      .map((s) => s.name);
+  }, [query, allSummaries, typeFilters]);
 
   useEffect(() => {
-    // Small delay so the modal animation completes before focus
     const t = setTimeout(() => inputRef.current?.focus(), 50);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Digit hotkeys toggle type filters when text input is NOT focused.
+      const activeEl = document.activeElement;
+      const isInInput =
+        activeEl === inputRef.current ||
+        activeEl?.tagName === "INPUT" ||
+        activeEl?.tagName === "TEXTAREA";
+      if (!isInInput && HOTKEY_MAP[e.key]) {
+        e.preventDefault();
+        const type = HOTKEY_MAP[e.key]!;
+        setTypeFilters((prev) =>
+          prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
+        );
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -60,7 +91,7 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="animate-fade-in relative w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 p-5 shadow-2xl">
         {/* Header */}
@@ -80,18 +111,18 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
           </button>
         </div>
 
-        {/* Search */}
+        {/* Search input */}
         <div className="relative">
           <input
             ref={inputRef}
             value={query}
-            onChange={e => { setQuery(e.target.value); setChosen(null); }}
+            onChange={(e) => { setQuery(e.target.value); setChosen(null); }}
             placeholder="Charizard, Garchomp, 006…"
             className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
           />
           {matches.length > 0 && !chosen && (
             <ul className="absolute top-full z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl">
-              {matches.map(name => (
+              {matches.map((name) => (
                 <li key={name}>
                   <button
                     onClick={() => pick(name)}
@@ -105,10 +136,17 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
           )}
         </div>
 
+        {/* Type filter bar */}
+        <div className="mt-3 border-t border-zinc-800/60 pt-3">
+          <TypeFilterBar selected={typeFilters} onChange={setTypeFilters} />
+        </div>
+
         {/* Loading */}
         {isFetching && (
-          <div className="mt-4 flex items-center justify-center py-8 text-sm text-zinc-500">
-            Loading…
+          <div className="relative mt-4 flex h-28 items-center justify-center overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
+            <div className="absolute inset-0 bg-zinc-900/70 backdrop-blur-[1px]" />
+            <div className="shimmer absolute inset-0" />
+            <span className="relative z-10 text-xs text-zinc-600">Loading…</span>
           </div>
         )}
 
@@ -129,15 +167,17 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
                   className="drop-shadow-lg"
                 />
               </div>
-              <div className="flex flex-1 flex-col gap-2 min-w-0">
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold capitalize tracking-tight text-white truncate">{pokemon.name}</h3>
+                  <h3 className="truncate font-bold capitalize tracking-tight text-white">
+                    {pokemon.name}
+                  </h3>
                   <span className="shrink-0 text-xs text-zinc-500">
                     #{String(pokemon.pokeApiId).padStart(3, "0")}
                   </span>
                 </div>
                 <div className="flex gap-1">
-                  {pokemon.types.map(t => (
+                  {pokemon.types.map((t) => (
                     <TypeBadge key={t} type={t as PokemonType} size="sm" />
                   ))}
                 </div>
@@ -168,6 +208,15 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
           </div>
         )}
 
+        {/* Empty state when type filters active but no results */}
+        {!pokemon && !isFetching && !chosen && matches.length === 0 && typeFilters.length > 0 && query.length < 2 && (
+          <p className="mt-4 text-center text-xs text-zinc-600">
+            No Pokemon match{" "}
+            <span className="capitalize text-zinc-500">{typeFilters.join(" + ")}</span>.
+            Try fewer filters.
+          </p>
+        )}
+
         {/* Keep-current hint */}
         {current && !pokemon && (
           <p className="mt-3 text-center text-xs text-zinc-600">
@@ -176,6 +225,13 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
             <span className="capitalize text-zinc-500">{current.name}</span>
           </p>
         )}
+
+        {/* Hotkey hint */}
+        <p className="mt-2 text-center text-[10px] text-zinc-700">
+          Keys <kbd className="rounded bg-zinc-900 px-0.5 font-mono text-zinc-600">1</kbd>–
+          <kbd className="rounded bg-zinc-900 px-0.5 font-mono text-zinc-600">0</kbd> toggle
+          first 10 types when not typing
+        </p>
       </div>
     </div>
   );

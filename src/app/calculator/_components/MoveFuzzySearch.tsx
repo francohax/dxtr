@@ -181,23 +181,31 @@ function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface MoveFuzzySearchProps {
-  moveNames:       string[];
-  value:           MoveDetail | null;
-  onSelect:        (move: MoveDetail) => void;
-  onClear:         () => void;
-  inputRef?:       React.RefObject<HTMLInputElement | null>;
-  isLoadingMove?:  boolean;
-  attackerSprite?: string;
-  attackerName?:   string;
+  moveNames:        string[];
+  value:            MoveDetail | null;
+  onSelect:         (move: MoveDetail) => void;
+  onClear:          () => void;
+  inputRef?:        React.RefObject<HTMLInputElement | null>;
+  isLoadingMove?:   boolean;
+  attackerSprite?:  string;
+  attackerName?:    string;
+  /** Caller-owned ref populated with a function that opens the picker modal */
+  openModalRef?:    React.RefObject<(() => void) | null>;
 }
 
-export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef, isLoadingMove, attackerSprite, attackerName }: MoveFuzzySearchProps) {
+export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef, isLoadingMove, attackerSprite, attackerName, openModalRef }: MoveFuzzySearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const utils = api.useUtils();
+
+  // Register open function in caller-owned ref so K shortcut can trigger the modal externally
+  useEffect(() => {
+    if (openModalRef) openModalRef.current = () => setModalOpen(true);
+    return () => { if (openModalRef) openModalRef.current = null; };
+  }, [openModalRef]);
 
   useEffect(() => {
     function handle(e: MouseEvent) {

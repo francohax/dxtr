@@ -22,6 +22,7 @@ import { StatStagePanel } from "./StatStagePanel";
 import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 import { useCalculatorKeyboard } from "~/hooks/useCalculatorKeyboard";
 import { useFocusChain, type FocusChainEntry } from "~/hooks/useFocusChain";
+import { HotkeyModal } from "./HotkeyModal";
 
 const STORAGE_KEY = "dxtr-random-battle";
 
@@ -44,11 +45,10 @@ interface EvPanelProps {
 
 function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused }: EvPanelProps) {
   return (
-    <div className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition ${
-      kbFocused
-        ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
-        : "border-zinc-700/40 bg-zinc-800/20"
-    }`}>
+    <div className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition ${kbFocused
+      ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
+      : "border-zinc-700/40 bg-zinc-800/20"
+      }`}>
       <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">EVs</span>
       {stats.map(({ key, label, base }) => {
         const ev = evs[key] ?? 0;
@@ -182,6 +182,7 @@ export function DamageCalculator() {
 
   const [attackerModalOpen, setAttackerModalOpen] = useState(false);
   const [defenderModalOpen, setDefenderModalOpen] = useState(false);
+  const [hotkeyModalOpen, setHotkeyModalOpen] = useState(false);
 
   const [randomEnabled, setRandomEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -194,10 +195,11 @@ export function DamageCalculator() {
     { staleTime: Infinity },
   );
   const utils = api.useUtils();
-  const moveInputRef    = useRef<HTMLInputElement>(null);
+  const moveInputRef = useRef<HTMLInputElement>(null);
+  const openMovePickerRef = useRef<(() => void) | null>(null);
   const attackerCardRef = useRef<HTMLDivElement>(null);
   const defenderCardRef = useRef<HTMLDivElement>(null);
-  const levelInputRef   = useRef<HTMLInputElement>(null);
+  const levelInputRef = useRef<HTMLInputElement>(null);
 
   const attackerActiveKey = move
     ? (move.category === "physical" ? "attack" : move.category === "special" ? "spAttack" : undefined)
@@ -313,15 +315,32 @@ export function DamageCalculator() {
     onSearch: () => {
       if (!attacker) { setAttackerModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }
       else if (!defender) { setDefenderModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }
-      else moveInputRef.current?.focus();
+      else if (move) { openMovePickerRef.current?.(); }  // move selected → open the picker modal
+      else { moveInputRef.current?.focus(); }             // no move → focus the inline search input
     },
   });
 
+  // "/" opens the hotkey cheat sheet (fires even when an input is focused)
+  useEffect(() => {
+    function onSlash(e: KeyboardEvent) {
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Only suppress default (browser quick-find) when no input is focused, or when modal is already open
+        const el = document.activeElement;
+        const inInput = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
+        if (inInput && !hotkeyModalOpen) return; // let the user type "/" in inputs normally
+        e.preventDefault();
+        setHotkeyModalOpen(prev => !prev);
+      }
+    }
+    window.addEventListener("keydown", onSlash);
+    return () => window.removeEventListener("keydown", onSlash);
+  }, [hotkeyModalOpen]);
+
   const [kbState, setKbState] = useCalculatorKeyboard({
-    onOpenAttackerModal:   () => { setAttackerModalOpen(true);  setKbState({ slot: null, panel: null, attribute: null }); },
-    onOpenDefenderModal:   () => { setDefenderModalOpen(true);  setKbState({ slot: null, panel: null, attribute: null }); },
-    onChangeAttackerEv:    (key, val) => setAttackerEvs(prev => ({ ...prev, [key]: val })),
-    onChangeDefenderEv:    (key, val) => setDefenderEvs(prev => ({ ...prev, [key]: val })),
+    onOpenAttackerModal: () => { setAttackerModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); },
+    onOpenDefenderModal: () => { setDefenderModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); },
+    onChangeAttackerEv: (key, val) => setAttackerEvs(prev => ({ ...prev, [key]: val })),
+    onChangeDefenderEv: (key, val) => setDefenderEvs(prev => ({ ...prev, [key]: val })),
     onChangeAttackerStage: (key, val) => setAttackerStages(prev => ({ ...prev, [key]: val })),
     onChangeDefenderStage: (key, val) => setDefenderStages(prev => ({ ...prev, [key]: val })),
     attackerEvs,
@@ -333,8 +352,8 @@ export function DamageCalculator() {
   const focusChain = useMemo<FocusChainEntry[]>(() => [
     { id: "attacker-card", getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
     { id: "defender-card", getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "move-search",   getElement: () => moveInputRef.current },
-    { id: "level-input",   getElement: () => levelInputRef.current },
+    { id: "move-search", getElement: () => moveInputRef.current },
+    { id: "level-input", getElement: () => levelInputRef.current },
   ], []);
 
   useFocusChain(focusChain);
@@ -509,7 +528,13 @@ export function DamageCalculator() {
       {/* ── RIGHT COLUMN ── */}
       <div className="flex h-full justify-end item-end flex-col gap-4">
 
-
+        <div className="h-full p-4 text-end">
+          {/* Hotkey hint — full cheat sheet opens with "/" */}
+          <div className="flex items-start justify-end gap-1.5 text-[11px] text-zinc-700">
+            <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">/</kbd>
+            <span>Keyboard shortcuts</span>
+          </div>
+        </div>
 
         {/* Move section — z-10 keeps dropdown above anything below */}
         <div className="glass-card relative z-10 flex flex-col gap-2 p-4">
@@ -521,6 +546,9 @@ export function DamageCalculator() {
             onSelect={m => setMove(m)}
             onClear={() => setMove(null)}
             inputRef={moveInputRef}
+            openModalRef={openMovePickerRef}
+            attackerSprite={attacker?.sprite}
+            attackerName={attacker?.name}
           />
         </div>
 
@@ -574,6 +602,9 @@ export function DamageCalculator() {
           }}
           onClose={() => setDefenderModalOpen(false)}
         />
+      )}
+      {hotkeyModalOpen && (
+        <HotkeyModal onClose={() => setHotkeyModalOpen(false)} />
       )}
     </div>
   );

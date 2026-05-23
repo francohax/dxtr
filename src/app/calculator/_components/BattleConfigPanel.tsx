@@ -1,22 +1,22 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { type BattleConfig, type Weather, type Terrain } from "~/lib/types";
 
 // ─── Pill definitions (no "none" — clicking active deselects) ─────────────────
 
 const WEATHER_OPTIONS: { value: Weather; label: string; activeClass: string }[] = [
-  { value: "sun", label: "Harsh Sun", activeClass: "border-orange-500/80 bg-orange-900/50 text-orange-200" },
-  { value: "rain", label: "Rain", activeClass: "border-blue-500/80   bg-blue-900/50   text-blue-200" },
-  { value: "sandstorm", label: "Sandstorm", activeClass: "border-amber-500/80  bg-amber-900/50  text-amber-200" },
-  { value: "hail", label: "Hail", activeClass: "border-cyan-500/80   bg-cyan-900/50   text-cyan-200" },
+  { value: "sun",       label: "Harsh Sun",  activeClass: "border-orange-500/80 bg-orange-900/50 text-orange-200" },
+  { value: "rain",      label: "Rain",       activeClass: "border-blue-500/80   bg-blue-900/50   text-blue-200" },
+  { value: "sandstorm", label: "Sandstorm",  activeClass: "border-amber-500/80  bg-amber-900/50  text-amber-200" },
+  { value: "hail",      label: "Hail",       activeClass: "border-cyan-500/80   bg-cyan-900/50   text-cyan-200" },
 ];
 
 const TERRAIN_OPTIONS: { value: Terrain; label: string; activeClass: string }[] = [
-  { value: "electric", label: "Electric", activeClass: "border-yellow-500/80 bg-yellow-900/50 text-yellow-200" },
-  { value: "grassy", label: "Grassy", activeClass: "border-green-500/80  bg-green-900/50  text-green-200" },
-  { value: "psychic", label: "Psychic", activeClass: "border-purple-500/80 bg-purple-900/50 text-purple-200" },
-  { value: "misty", label: "Misty", activeClass: "border-pink-500/80   bg-pink-900/50   text-pink-200" },
+  { value: "electric", label: "Electric",   activeClass: "border-yellow-500/80 bg-yellow-900/50 text-yellow-200" },
+  { value: "grassy",   label: "Grassy",     activeClass: "border-green-500/80  bg-green-900/50  text-green-200" },
+  { value: "psychic",  label: "Psychic",    activeClass: "border-purple-500/80 bg-purple-900/50 text-purple-200" },
+  { value: "misty",    label: "Misty",      activeClass: "border-pink-500/80   bg-pink-900/50   text-pink-200" },
 ];
 
 const PILL_INACTIVE = "border-zinc-800 bg-zinc-900/60 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400";
@@ -28,20 +28,47 @@ interface PillGridProps<T extends string> {
   options: { value: T; label: string; activeClass: string }[];
   selected: T | "none";
   onSelect: (value: T | "none") => void;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-function PillGrid<T extends string>({ label, options, selected, onSelect }: PillGridProps<T>) {
+function PillGrid<T extends string>({ label, options, selected, onSelect, containerRef }: PillGridProps<T>) {
+  const [kbIndex, setKbIndex] = useState(-1);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      setKbIndex(i => (i + 1) % options.length);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setKbIndex(i => (i - 1 + options.length) % options.length);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const idx = kbIndex >= 0 ? kbIndex : 0;
+      const opt = options[idx];
+      if (opt) onSelect(opt.value === selected ? "none" : opt.value);
+    }
+  }
+
   return (
-    <div className="flex flex-1 flex-col gap-1.5">
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      onFocus={() => setKbIndex(0)}
+      onBlur={() => setKbIndex(-1)}
+      onKeyDown={handleKeyDown}
+      className="flex flex-1 flex-col gap-1.5 rounded-lg outline-none focus:ring-1 focus:ring-violet-500/40 focus:ring-offset-1 focus:ring-offset-zinc-950"
+    >
       <span className="text-xs font-medium text-zinc-500">{label}</span>
       <div className="grid grid-cols-2 gap-1.5">
-        {options.map(o => (
+        {options.map((o, i) => (
           <button
             key={o.value}
+            tabIndex={-1}
             onClick={() => onSelect(o.value === selected ? "none" : o.value)}
             aria-pressed={o.value === selected}
-            className={`rounded-lg border px-2 py-1.5 text-center text-[11px] font-medium leading-tight transition ${o.value === selected ? o.activeClass : PILL_INACTIVE
-              }`}
+            className={`rounded-lg border px-2 py-1.5 text-center text-[11px] font-medium leading-tight transition ${
+              o.value === selected ? o.activeClass : PILL_INACTIVE
+            } ${kbIndex === i ? "ring-1 ring-violet-500/60" : ""}`}
           >
             {o.label}
           </button>
@@ -61,20 +88,21 @@ interface ToggleButtonProps {
   icon: React.ReactNode;
   activeLabel: string;
   inactiveLabel: string;
+  buttonRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
-function ToggleButton({ label, active, onToggle, activeClass, icon, activeLabel, inactiveLabel }: ToggleButtonProps) {
+function ToggleButton({ label, active, onToggle, activeClass, icon, activeLabel, inactiveLabel, buttonRef }: ToggleButtonProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-zinc-500">{label}</span>
       <button
+        ref={buttonRef}
         role="switch"
         aria-checked={active}
         onClick={onToggle}
-        className={`flex h-[34px] items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition ${active
-          ? activeClass
-          : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-          }`}
+        className={`flex h-[34px] items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition ${
+          active ? activeClass : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+        }`}
       >
         {icon}
         <span>{active ? activeLabel : inactiveLabel}</span>
@@ -89,9 +117,13 @@ interface BattleConfigPanelProps {
   config: BattleConfig;
   onChange: (config: BattleConfig) => void;
   levelInputRef?: React.RefObject<HTMLInputElement | null>;
+  weatherRef?: React.RefObject<HTMLDivElement | null>;
+  terrainRef?: React.RefObject<HTMLDivElement | null>;
+  critRef?: React.RefObject<HTMLButtonElement | null>;
+  burnRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
-export function BattleConfigPanel({ config, onChange, levelInputRef }: BattleConfigPanelProps) {
+export function BattleConfigPanel({ config, onChange, levelInputRef, weatherRef, terrainRef, critRef, burnRef }: BattleConfigPanelProps) {
   function update<K extends keyof BattleConfig>(key: K, value: BattleConfig[K]) {
     onChange({ ...config, [key]: value });
   }
@@ -113,12 +145,14 @@ export function BattleConfigPanel({ config, onChange, levelInputRef }: BattleCon
             options={WEATHER_OPTIONS}
             selected={config.weather}
             onSelect={v => update("weather", v as Weather)}
+            containerRef={weatherRef}
           />
           <PillGrid
             label="Terrain"
             options={TERRAIN_OPTIONS}
             selected={config.terrain}
             onSelect={v => update("terrain", v as Terrain)}
+            containerRef={terrainRef}
           />
         </div>
 
@@ -146,6 +180,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef }: BattleCon
               active={config.isCritical}
               onToggle={() => update("isCritical", !config.isCritical)}
               activeClass="border-yellow-600/60 bg-yellow-900/30 text-yellow-300"
+              buttonRef={critRef}
               icon={
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -160,6 +195,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef }: BattleCon
               active={config.attackerBurned}
               onToggle={() => update("attackerBurned", !config.attackerBurned)}
               activeClass="border-orange-600/60 bg-orange-900/30 text-orange-300"
+              buttonRef={burnRef}
               icon={
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />

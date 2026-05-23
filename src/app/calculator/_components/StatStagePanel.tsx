@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 interface StatStageRowProps {
   label: string;
   statKey: string;
@@ -59,15 +61,20 @@ interface StatStagePanelProps {
   activeKey?: string;
   onChange: (key: string, value: number) => void;
   kbFocused?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export function StatStagePanel({ stats, stages, activeKey, onChange, kbFocused }: StatStagePanelProps) {
+export function StatStagePanel({ stats, stages, activeKey, onChange, kbFocused, containerRef }: StatStagePanelProps) {
   return (
-    <div className={`flex flex-col gap-2.5 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition ${
-      kbFocused
-        ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
-        : "border-zinc-700/40 bg-zinc-800/20"
-    }`}>
+    <div
+      ref={containerRef}
+      tabIndex={containerRef ? 0 : undefined}
+      className={`flex flex-col gap-2.5 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition outline-none ${
+        kbFocused
+          ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
+          : "border-zinc-700/40 bg-zinc-800/20"
+      }`}
+    >
       <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Stages</span>
       {stats.map(({ key, label }) => (
         <StatStageRow

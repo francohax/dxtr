@@ -29,9 +29,12 @@ const SECTIONS = [
   {
     title: "Weather & Terrain",
     rows: [
-      { keys: ["Tab"],               desc: "Tab to the Weather or Terrain grid, then use arrow keys" },
-      { keys: ["↑", "↓", "←", "→"], desc: "Navigate weather / terrain options" },
-      { keys: ["Enter", "Space"],    desc: "Toggle selected option (click again to deselect)" },
+      { keys: ["w"],                 desc: "Focus Weather grid, then press 1–4 to set (same key clears)" },
+      { keys: ["t"],                 desc: "Focus Terrain grid, then press 1–4 to set (same key clears)" },
+      { keys: ["c"],                 desc: "Toggle Critical Hit" },
+      { keys: ["v"],                 desc: "Toggle Burn (attacker)" },
+      { keys: ["↑", "↓", "←", "→"], desc: "Navigate focused weather / terrain grid" },
+      { keys: ["Enter", "Space"],    desc: "Toggle highlighted option" },
     ],
   },
   {

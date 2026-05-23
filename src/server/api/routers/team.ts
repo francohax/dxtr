@@ -139,6 +139,8 @@ export const teamRouter = createTRPCRouter({
               power: m.power,
               accuracy: m.accuracy,
               pp: m.pp,
+              effect: null,
+              effectChance: null,
             })),
             nature: slot.nature,
             evs: {

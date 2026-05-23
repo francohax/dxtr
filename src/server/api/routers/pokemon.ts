@@ -5,6 +5,14 @@ import { fetchPokemon, fetchMove, fetchAllPokemonNames } from "~/lib/pokeapi";
 import { type PokemonSummary, type PokemonType } from "~/lib/types";
 import { type CachedPokemon } from "../../../../generated/prisma/index.js";
 
+// Top 20 Pokemon Champions (VGC 2026 Reg M-A) ordered by usage.
+const VGC_TOP20 = [
+  "sneasler", "garchomp", "kingambit", "basculegion", "incineroar",
+  "sinistcha", "charizard-mega-y", "pelipper", "aerodactyl", "archaludon",
+  "rotom-wash", "farigiraf", "milotic", "whimsicott", "rillaboom",
+  "iron-hands", "roaring-moon", "flutter-mane", "greninja", "iron-bundle",
+];
+
 function dbToSummary(p: CachedPokemon): PokemonSummary {
   return {
     pokeApiId: p.id,
@@ -73,4 +81,29 @@ export const pokemonRouter = createTRPCRouter({
         });
       }
     }),
+
+  // Returns top-20 Pokemon Champions picks with sprite + types.
+  // Checks DB cache first; fetches from PokeAPI (24h HTTP cache) for any missing.
+  getVgcTopPicks: publicProcedure.query(async ({ ctx }) => {
+    const cached = await ctx.db.cachedPokemon.findMany({
+      where: { name: { in: VGC_TOP20 } },
+      select: { name: true, sprite: true, types: true },
+    });
+    const found = new Map(cached.map(p => [p.name, { name: p.name, sprite: p.sprite, types: p.types as string[] }]));
+
+    // Fetch any missing entries from PokeAPI (Next.js fetch provides 24h caching)
+    const missing = VGC_TOP20.filter(n => !found.has(n));
+    if (missing.length > 0) {
+      const results = await Promise.allSettled(missing.map(n => fetchPokemon(n)));
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") {
+          found.set(missing[i]!, { name: r.value.name, sprite: r.value.sprite, types: r.value.types });
+        }
+      });
+    }
+
+    return VGC_TOP20
+      .map(n => found.get(n))
+      .filter((p): p is NonNullable<typeof p> => p != null);
+  }),
 });

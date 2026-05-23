@@ -3,7 +3,7 @@ import { useEffect } from "react";
 type ShortcutMap = {
   /** Fired by Enter when focus is NOT in an input, OR by Ctrl+Enter anywhere */
   onSubmit?: () => void;
-  /** Fired by Ctrl+K */
+  /** Fired by K when focus is NOT in an input */
   onSearch?: () => void;
 };
 
@@ -21,7 +21,7 @@ function isInputFocused(): boolean {
 export function useKeyboardShortcuts({ onSubmit, onSearch }: ShortcutMap) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "k" && e.ctrlKey) {
+      if (e.code === "KeyK" && !e.ctrlKey && !e.metaKey && !e.altKey && !isInputFocused()) {
         e.preventDefault();
         onSearch?.();
         return;

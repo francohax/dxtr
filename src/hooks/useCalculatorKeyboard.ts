@@ -21,6 +21,7 @@ export interface UseCalculatorKeyboardOptions {
   defenderEvs:    Record<string, number>;
   attackerStages: Record<string, number>;
   defenderStages: Record<string, number>;
+  moveCategory?:  "physical" | "special" | "status";
 }
 
 function isInputFocused(): boolean {
@@ -35,6 +36,13 @@ function isInputFocused(): boolean {
 }
 
 const EMPTY: CalcKbState = { slot: null, panel: null, attribute: null };
+
+function autoAttribute(slot: FocusSlot, category?: string): FocusAttribute {
+  if (!slot || !category) return null;
+  if (category === "physical") return slot === "attacker" ? "attack" : "defense";
+  if (category === "special")  return slot === "attacker" ? "spAttack" : "spDefense";
+  return null;
+}
 
 export function useCalculatorKeyboard(
   options: UseCalculatorKeyboardOptions,
@@ -74,10 +82,10 @@ export function useCalculatorKeyboard(
         return;
       }
 
-      // Panel selection (requires slot)
+      // Panel selection (requires slot) — auto-selects attribute based on move category
       if (s.slot !== null) {
-        if (e.code === "KeyE") { e.preventDefault(); setState(prev => ({ ...prev, panel: "ev",    attribute: null })); return; }
-        if (e.code === "KeyB") { e.preventDefault(); setState(prev => ({ ...prev, panel: "stage", attribute: null })); return; }
+        if (e.code === "KeyE") { e.preventDefault(); setState(prev => ({ ...prev, panel: "ev",    attribute: autoAttribute(s.slot, opts.moveCategory) })); return; }
+        if (e.code === "KeyB") { e.preventDefault(); setState(prev => ({ ...prev, panel: "stage", attribute: autoAttribute(s.slot, opts.moveCategory) })); return; }
       }
 
       // Attribute selection (requires panel) — a/s keys + ArrowUp/Down

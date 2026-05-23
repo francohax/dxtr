@@ -15,8 +15,8 @@ export interface UseListKeyboardOptions {
 export function useListKeyboard({ count, onConfirm, onEscape, enabled = true }: UseListKeyboardOptions) {
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  // Reset whenever the list length changes (new query result)
-  useEffect(() => { setActiveIndex(-1); }, [count]);
+  // Reset to first item whenever the list changes
+  useEffect(() => { setActiveIndex(count > 0 ? 0 : -1); }, [count]);
 
   const activeRef = useRef(activeIndex);
   activeRef.current = activeIndex;

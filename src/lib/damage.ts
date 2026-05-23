@@ -24,6 +24,7 @@ export interface DamageResult {
   weatherMult: number;
   terrainMult: number;
   critMult: number;
+  stageMult?: number;
 }
 
 function getWeatherMult(weather: Weather | undefined, moveType: PokemonType | undefined): number {
@@ -40,6 +41,15 @@ function getTerrainMult(terrain: Terrain | undefined, moveType: PokemonType | un
   if (terrain === "psychic"  && moveType === "psychic")  return 1.3;
   if (terrain === "misty"    && moveType === "dragon")   return 0.5;
   return 1;
+}
+
+export function calcEffectiveStat(base: number, ev: number, level: number): number {
+  return Math.floor(Math.floor((2 * base + Math.floor(ev / 4)) * level / 100) + 5);
+}
+
+export function getStatStageMult(stage: number): number {
+  const s = Math.max(-6, Math.min(6, stage));
+  return s >= 0 ? (2 + s) / 2 : 2 / (2 - s);
 }
 
 export function calculateDamage(input: DamageInput): DamageResult {

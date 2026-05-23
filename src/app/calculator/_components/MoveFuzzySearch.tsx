@@ -4,7 +4,6 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
-import { SkeletonBlock } from "~/app/_components/SkeletonBlock";
 import { useMovePrefetch } from "~/hooks/useMovePrefetch";
 import { useListKeyboard }  from "~/hooks/useListKeyboard";
 import { type MoveDetail, type PokemonType } from "~/lib/types";
@@ -249,22 +248,9 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
   // ── Skeleton while randomize is fetching ──────────────────────────────────
   if (isLoadingMove ?? loading) {
     return (
-      <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-3">
-        <div className="shimmer absolute inset-0" />
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2.5">
-            <SkeletonBlock className="h-5 w-14 rounded-full" />
-            <SkeletonBlock className="h-4 w-32" />
-            <SkeletonBlock className="ml-auto h-4 w-16 rounded-md" />
-          </div>
-          <div className="flex gap-4">
-            <SkeletonBlock className="h-3 w-12" />
-            <SkeletonBlock className="h-3 w-12" />
-            <SkeletonBlock className="h-3 w-8" />
-          </div>
-          <SkeletonBlock className="h-3 w-full" />
-          <SkeletonBlock className="h-3 w-3/4" />
-        </div>
+      <div className="flex flex-col gap-2 rounded-xl border border-zinc-800/60 bg-zinc-900 px-3 py-3">
+        <div className="h-3 w-20 animate-pulse rounded bg-zinc-800" />
+        <div className="h-3 w-32 animate-pulse rounded bg-zinc-800/60" />
       </div>
     );
   }

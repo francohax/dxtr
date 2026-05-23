@@ -17,6 +17,11 @@ interface RawPokemon {
   moves: RawMove[];
 }
 
+interface RawEffectEntry {
+  short_effect: string;
+  language: { name: string };
+}
+
 interface RawMoveDetail {
   id: number;
   name: string;
@@ -25,6 +30,8 @@ interface RawMoveDetail {
   power: number | null;
   accuracy: number | null;
   pp: number;
+  effect_chance: number | null;
+  effect_entries: RawEffectEntry[];
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -58,6 +65,9 @@ export async function fetchPokemon(nameOrId: string | number): Promise<PokemonSu
 
 export async function fetchMove(nameOrId: string | number): Promise<MoveDetail> {
   const raw = await fetchJson<RawMoveDetail>(`${BASE}/move/${nameOrId}`);
+  const enEntry = raw.effect_entries.find(e => e.language.name === "en");
+  const shortEffect = enEntry?.short_effect
+    .replace(/\$effect_chance/g, String(raw.effect_chance ?? 0)) ?? null;
   return {
     pokeApiId: raw.id,
     name: raw.name,
@@ -66,6 +76,8 @@ export async function fetchMove(nameOrId: string | number): Promise<MoveDetail> 
     power: raw.power,
     accuracy: raw.accuracy,
     pp: raw.pp,
+    effect: shortEffect,
+    effectChance: raw.effect_chance,
   };
 }
 

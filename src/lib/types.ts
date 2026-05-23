@@ -29,6 +29,8 @@ export interface MoveDetail {
   power: number | null;
   accuracy: number | null;
   pp: number;
+  effect: string | null;
+  effectChance: number | null;
 }
 
 export interface StatSet {
@@ -45,13 +47,13 @@ export const ZERO_STATS: StatSet = {
 };
 
 export interface TeamSlotConfig {
-  position: number;       // 0–5
+  position: number;
   pokemon: PokemonSummary;
-  moves: MoveDetail[];    // max 4
-  nature: string;         // "adamant", "timid", etc. Default: "hardy"
-  evs: StatSet;           // each 0–252, total ≤ 510
-  ivs: StatSet;           // each 0–31
-  ivsEnabled: boolean;    // false = treat all IVs as 0 in calculations
+  moves: MoveDetail[];
+  nature: string;
+  evs: StatSet;
+  ivs: StatSet;
+  ivsEnabled: boolean;
 }
 
 export interface TeamConfig {
@@ -68,6 +70,7 @@ export interface BattleConfig {
   weather: Weather;
   terrain: Terrain;
   isCritical: boolean;
+  attackerBurned: boolean;
 }
 
 export const DEFAULT_BATTLE_CONFIG: BattleConfig = {
@@ -75,4 +78,5 @@ export const DEFAULT_BATTLE_CONFIG: BattleConfig = {
   weather: "none",
   terrain: "none",
   isCritical: false,
+  attackerBurned: false,
 };

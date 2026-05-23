@@ -15,6 +15,8 @@ export interface DamageResult {
   average: number;
   stab: number;
   typeEffectiveness: number;
+  baseDamage: number;
+  modifiedBeforeRandom: number;
 }
 
 export function calculateDamage(input: DamageInput): DamageResult {
@@ -28,6 +30,8 @@ export function calculateDamage(input: DamageInput): DamageResult {
     average: Math.floor(modified * 0.925),
     stab: stabMult,
     typeEffectiveness,
+    baseDamage: Math.floor(base),
+    modifiedBeforeRandom: modified,
   };
 }
 

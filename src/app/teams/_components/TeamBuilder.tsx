@@ -10,6 +10,7 @@ import { StatEditor } from "./StatEditor";
 import { SaveTeamModal } from "./SaveTeamModal";
 import { SavedTeamsPanel } from "./SavedTeamsPanel";
 import { type PokemonSummary, type MoveDetail, type TeamSlotConfig, type StatSet, ZERO_STATS } from "~/lib/types";
+import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 
 const EMPTY_SLOTS = (): (TeamSlotConfig | null)[] => Array(6).fill(null);
 
@@ -33,6 +34,13 @@ export function TeamBuilder() {
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [showSave, setShowSave] = useState(false);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
+
+  useKeyboardShortcuts({
+    onSearch: () => {
+      const firstEmpty = slots.findIndex(s => s === null);
+      if (firstEmpty !== -1) openSearch(firstEmpty);
+    },
+  });
 
   const utils = api.useUtils();
   const saveTeam = api.team.create.useMutation({

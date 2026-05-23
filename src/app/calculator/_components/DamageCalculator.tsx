@@ -8,6 +8,7 @@ import { type DamageResult } from "~/lib/damage";
 import { type PokemonSummary, type MoveDetail, type PokemonType } from "~/lib/types";
 import { DamageResultCard } from "./DamageResult";
 import { TypeBadge } from "~/app/_components/TypeBadge";
+import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 
 const STORAGE_KEY = "dxtr-random-battle";
 
@@ -165,6 +166,21 @@ export function DamageCalculator() {
       void randomizeBattle();
     }
   }, [randomEnabled, allNames.length, randomizeBattle]);
+
+  useKeyboardShortcuts({
+    onSubmit: () => {
+      if (attacker && defender && moveData) calculate();
+    },
+    onSearch: () => {
+      if (!attacker) {
+        attackerInputRef.current?.focus();
+      } else if (!defender) {
+        defenderInputRef.current?.focus();
+      } else {
+        moveInputRef.current?.focus();
+      }
+    },
+  });
 
   return (
     <div className="flex flex-col gap-6">

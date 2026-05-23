@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { api } from "~/trpc/react";
 import { calculateDamage, getTypeEffectiveness } from "~/lib/damage";
@@ -9,15 +9,23 @@ import { type PokemonSummary, type MoveDetail, type PokemonType } from "~/lib/ty
 import { DamageResultCard } from "./DamageResult";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 
+const STORAGE_KEY = "dxtr-random-battle";
+
+interface PokemonPickerProps {
+  label: string;
+  value: PokemonSummary | null;
+  onPick: (p: PokemonSummary) => void;
+  onClear: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+}
+
 function PokemonPicker({
   label,
   value,
   onPick,
-}: {
-  label: string;
-  value: PokemonSummary | null;
-  onPick: (p: PokemonSummary) => void;
-}) {
+  onClear,
+  inputRef,
+}: PokemonPickerProps) {
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
 
@@ -39,7 +47,7 @@ function PokemonPicker({
             </div>
           </div>
           <button
-            onClick={() => { setSubmitted(""); setQuery(""); }}
+            onClick={() => { setSubmitted(""); setQuery(""); onClear(); }}
             className="ml-auto text-xs text-zinc-600 hover:text-white"
           >
             Change
@@ -48,6 +56,7 @@ function PokemonPicker({
       ) : (
         <form onSubmit={e => { e.preventDefault(); setSubmitted(query.trim()); }} className="flex gap-2">
           <input
+            ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Pokemon name…"
@@ -82,6 +91,22 @@ export function DamageCalculator() {
   const [moveSubmitted, setMoveSubmitted] = useState("");
   const [result, setResult] = useState<{ dmg: DamageResult; move: MoveDetail } | null>(null);
 
+  const [randomEnabled, setRandomEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : stored === "true";
+  });
+
+  const { data: allNames = [] } = api.pokemon.listNames.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  const utils = api.useUtils();
+
+  const attackerInputRef = useRef<HTMLInputElement>(null);
+  const defenderInputRef = useRef<HTMLInputElement>(null);
+  const moveInputRef = useRef<HTMLInputElement>(null);
+
   const { data: moveData, isFetching: moveFetching, error: moveError } =
     api.pokemon.getMove.useQuery(
       { moveName: moveSubmitted },
@@ -99,11 +124,105 @@ export function DamageCalculator() {
     setResult({ dmg, move: moveData });
   }
 
+  const randomizeBattle = useCallback(async () => {
+    if (allNames.length === 0) return;
+
+    const pick = () => allNames[Math.floor(Math.random() * allNames.length)]!;
+    const attName = pick();
+    let defName = pick();
+    while (defName === attName && allNames.length > 1) defName = pick();
+
+    setResult(null);
+
+    const [att, def] = await Promise.all([
+      utils.pokemon.search.fetch({ query: attName }),
+      utils.pokemon.search.fetch({ query: defName }),
+    ]);
+    setAttacker(att);
+    setDefender(def);
+    setMoveQuery("");
+    setMoveSubmitted("");
+
+    const candidates = [...att.moveNames].sort(() => Math.random() - 0.5);
+    for (const moveName of candidates.slice(0, 10)) {
+      try {
+        const move = await utils.pokemon.getMove.fetch({ moveName });
+        if (move.power !== null && move.power > 0 && move.category !== "status") {
+          setMoveQuery(moveName.replace(/-/g, " "));
+          setMoveSubmitted(moveName);
+          break;
+        }
+      } catch {
+        // skip unavailable moves
+      }
+    }
+  }, [allNames, utils]);
+
+  const hasRandomized = useRef(false);
+  useEffect(() => {
+    if (randomEnabled && allNames.length > 0 && !hasRandomized.current) {
+      hasRandomized.current = true;
+      void randomizeBattle();
+    }
+  }, [randomEnabled, allNames.length, randomizeBattle]);
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Random scenario toggle */}
+      <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-zinc-200">Random Battle</span>
+          <span className="text-xs text-zinc-500">
+            {randomEnabled ? "Auto-loads a random matchup" : "Manual input mode"}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {randomEnabled && (
+            <button
+              onClick={() => void randomizeBattle()}
+              disabled={allNames.length === 0}
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-violet-600 hover:text-violet-400 disabled:opacity-40"
+            >
+              ↺ Reroll
+            </button>
+          )}
+          <button
+            role="switch"
+            aria-checked={randomEnabled}
+            onClick={() => {
+              const next = !randomEnabled;
+              setRandomEnabled(next);
+              sessionStorage.setItem(STORAGE_KEY, String(next));
+              if (next) void randomizeBattle();
+            }}
+            className={`relative h-6 w-11 rounded-full transition-colors ${
+              randomEnabled ? "bg-violet-600" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                randomEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <PokemonPicker label="Attacker" value={attacker} onPick={p => { setAttacker(p); setResult(null); }} />
-        <PokemonPicker label="Defender" value={defender} onPick={p => { setDefender(p); setResult(null); }} />
+        <PokemonPicker
+          label="Attacker"
+          value={attacker}
+          onPick={p => { setAttacker(p); setResult(null); }}
+          onClear={() => { setAttacker(null); setResult(null); }}
+          inputRef={attackerInputRef}
+        />
+        <PokemonPicker
+          label="Defender"
+          value={defender}
+          onPick={p => { setDefender(p); setResult(null); }}
+          onClear={() => { setDefender(null); setResult(null); }}
+          inputRef={defenderInputRef}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -113,6 +232,7 @@ export function DamageCalculator() {
           className="flex gap-2"
         >
           <input
+            ref={moveInputRef}
             value={moveQuery}
             onChange={e => setMoveQuery(e.target.value)}
             placeholder="flamethrower, earthquake…"
@@ -137,11 +257,13 @@ export function DamageCalculator() {
       </div>
 
       <button
+        type="button"
         onClick={calculate}
         disabled={!attacker || !defender || !moveData}
         className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40"
       >
         Calculate Damage
+        <span className="ml-2 text-xs font-normal opacity-60">↵ Enter</span>
       </button>
 
       {result && attacker && defender && (

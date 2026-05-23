@@ -104,6 +104,12 @@ export function DamageResultCard({
                 <ModifierPill label="Crit" value={`×${result.critMult}`} highlight />
               </>
             )}
+            {result.itemMult !== undefined && (
+              <>
+                <span className="text-[11px] text-zinc-700">×</span>
+                <ModifierPill label="Item" value={`×${result.itemMult}`} highlight />
+              </>
+            )}
             {result.stageMult !== undefined && result.stageMult !== 1 && (
               <>
                 <span className="text-[11px] text-zinc-700">×</span>

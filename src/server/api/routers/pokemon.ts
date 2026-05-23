@@ -31,6 +31,22 @@ function dbToSummary(p: CachedPokemon): PokemonSummary {
   };
 }
 
+function summaryToDbShape(p: PokemonSummary) {
+  return {
+    id: p.pokeApiId,
+    name: p.name,
+    sprite: p.sprite,
+    types: p.types,
+    hp: p.baseStats.hp,
+    attack: p.baseStats.attack,
+    defense: p.baseStats.defense,
+    spAttack: p.baseStats.spAttack,
+    spDefense: p.baseStats.spDefense,
+    speed: p.baseStats.speed,
+    moveNames: p.moveNames,
+  };
+}
+
 export const pokemonRouter = createTRPCRouter({
   // All Pokemon names ordered by PokeAPI id.
   // Reads from DB cache; falls back to PokeAPI if cache is empty.
@@ -52,7 +68,7 @@ export const pokemonRouter = createTRPCRouter({
     });
   }),
 
-  // Fetch a single Pokemon. Checks DB cache first, then falls back to PokeAPI.
+  // Fetch a single Pokemon. Checks DB cache first, then falls back to PokeAPI and writes back.
   search: publicProcedure
     .input(z.object({ query: z.string().min(1).max(100) }))
     .query(async ({ input, ctx }) => {
@@ -60,11 +76,41 @@ export const pokemonRouter = createTRPCRouter({
       const cached = await ctx.db.cachedPokemon.findFirst({ where: { name: q } });
       if (cached) return dbToSummary(cached);
       try {
-        return await fetchPokemon(q);
+        const p = await fetchPokemon(q);
+        const shape = summaryToDbShape(p);
+        await ctx.db.cachedPokemon.upsert({
+          where: { name: p.name },
+          create: shape,
+          update: { sprite: shape.sprite, types: shape.types, hp: shape.hp, attack: shape.attack, defense: shape.defense, spAttack: shape.spAttack, spDefense: shape.spDefense, speed: shape.speed, moveNames: shape.moveNames },
+        });
+        return p;
       } catch {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: `Pokemon "${input.query}" not found.`,
+        });
+      }
+    }),
+
+  // Force-refresh a cached Pokemon: deletes stale row then re-fetches from PokeAPI.
+  refresh: publicProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      const name = input.name.toLowerCase().trim();
+      await ctx.db.cachedPokemon.deleteMany({ where: { name } });
+      try {
+        const p = await fetchPokemon(name);
+        const shape = summaryToDbShape(p);
+        await ctx.db.cachedPokemon.upsert({
+          where: { name: p.name },
+          create: shape,
+          update: { sprite: shape.sprite, types: shape.types, hp: shape.hp, attack: shape.attack, defense: shape.defense, spAttack: shape.spAttack, spDefense: shape.spDefense, speed: shape.speed, moveNames: shape.moveNames },
+        });
+        return p;
+      } catch {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Pokemon "${input.name}" not found.`,
         });
       }
     }),

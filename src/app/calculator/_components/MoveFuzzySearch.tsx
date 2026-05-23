@@ -264,7 +264,8 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
           tabIndex={0}
           onClick={() => setModalOpen(true)}
           onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setModalOpen(true); }}
-          className="group relative cursor-pointer rounded-xl border border-zinc-800 bg-zinc-900 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/40"
+          style={{ "--type-glow": `var(--color-type-${value.type})` } as React.CSSProperties}
+          className="group relative cursor-pointer rounded-xl border border-zinc-800 bg-zinc-900 p-3 shadow-[0_0_14px_color-mix(in_srgb,var(--type-glow)_20%,transparent)] transition hover:border-zinc-600 hover:bg-zinc-800/40 hover:shadow-[0_0_22px_color-mix(in_srgb,var(--type-glow)_35%,transparent)]"
         >
           {/* Edit indicator — slides in from top-right on hover */}
           <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 opacity-0 transition-all duration-150 group-hover:opacity-100">

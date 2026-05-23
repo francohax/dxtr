@@ -30,6 +30,58 @@ import { HotkeyModal } from "./HotkeyModal";
 
 const STORAGE_KEY = "dxtr-random-battle";
 
+// ─── Showdown damage calc import format (two-set paste) ──────────────────────
+
+const SHOWDOWN_STAT: Record<string, string> = {
+  attack: "Atk", spAttack: "SpA", defense: "Def", spDefense: "SpD", hp: "HP", speed: "Spe",
+};
+
+function buildShowdownImport(
+  attacker: PokemonSummary,
+  defender: PokemonSummary,
+  move: MoveDetail,
+  attackerEvs: Record<string, number>,
+  defenderEvs: Record<string, number>,
+  attackerNature: NatureKey,
+  defenderNature: NatureKey,
+  attackerItem: CompetitiveItem | null,
+  defenderItem: CompetitiveItem | null,
+  level: number,
+): string {
+  const titleCase = (s: string) =>
+    s.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join("-");
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function evLine(evs: Record<string, number>): string | null {
+    const parts = Object.entries(evs)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => `${v} ${SHOWDOWN_STAT[k] ?? k}`);
+    return parts.length > 0 ? `EVs: ${parts.join(" / ")}` : null;
+  }
+
+  function buildSet(
+    pokemon: PokemonSummary,
+    item: CompetitiveItem | null,
+    nature: NatureKey,
+    evs: Record<string, number>,
+    moveName?: string,
+  ): string {
+    const lines: string[] = [];
+    lines.push(item ? `${titleCase(pokemon.name)} @ ${item.name}` : titleCase(pokemon.name));
+    lines.push(`Level: ${level}`);
+    const ev = evLine(evs);
+    if (ev) lines.push(ev);
+    lines.push(`${capitalize(nature)} Nature`);
+    if (moveName) lines.push(`- ${titleCase(moveName).replace(/-/g, " ")}`);
+    return lines.join("\n");
+  }
+
+  const atkSet = buildSet(attacker, attackerItem, attackerNature, attackerEvs, move.name);
+  const defSet = buildSet(defender, defenderItem, defenderNature, defenderEvs);
+  return `${atkSet}\n\n${defSet}`;
+}
+
 // ─── EV slider panel ─────────────────────────────────────────────────────────
 
 interface EvStat {
@@ -210,6 +262,7 @@ export function DamageCalculator() {
   const [attackerModalOpen, setAttackerModalOpen] = useState(false);
   const [defenderModalOpen, setDefenderModalOpen] = useState(false);
   const [hotkeyModalOpen, setHotkeyModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [randomEnabled, setRandomEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -301,8 +354,9 @@ export function DamageCalculator() {
       attackStat = Math.floor(attackStat / 2);
     }
 
-    if (attackerItem) attackStat  = Math.floor(attackStat  * getItemAttackMult(attackerItem,  move.category));
-    if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category));
+    // pokeRound matches the game's stat-item chain rounding
+    if (attackerItem) attackStat  = Math.floor(attackStat  * getItemAttackMult(attackerItem,  move.category) + 0.5);
+    if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category) + 0.5);
 
     const stab = attacker.types.includes(move.type as PokemonType);
     const te   = getTypeEffectiveness(move.type as PokemonType, defender.types as PokemonType[]);
@@ -407,6 +461,12 @@ export function DamageCalculator() {
     defenderEvs,
     attackerStages,
     defenderStages,
+    onFocusWeather:  () => weatherRef.current?.focus(),
+    onFocusTerrain:  () => terrainRef.current?.focus(),
+    onSelectWeather: (w) => setBattleConfig(prev => ({ ...prev, weather: prev.weather === w ? "none" : w })),
+    onSelectTerrain: (t) => setBattleConfig(prev => ({ ...prev, terrain: prev.terrain === t ? "none" : t })),
+    onToggleCrit:    () => setBattleConfig(prev => ({ ...prev, isCritical: !prev.isCritical })),
+    onToggleBurn:    () => setBattleConfig(prev => ({ ...prev, attackerBurned: !prev.attackerBurned })),
   });
 
   const focusChain = useMemo<FocusChainEntry[]>(() => [
@@ -635,14 +695,50 @@ export function DamageCalculator() {
       {/* ── RIGHT COLUMN ── */}
       <div className="flex h-full justify-end item-end flex-col gap-3.5">
 
-        <div className="h-full p-4 text-end">
+        <div className="flex h-full mt-1 items-start justify-between p-4">
+          {/* Copy to Showdown calc — only visible when a result exists */}
+          {result && attacker && defender && move ? (
+            <button
+              onClick={() => {
+                const text = buildShowdownImport(
+                  attacker, defender, move,
+                  attackerEvs, defenderEvs,
+                  attackerNature, defenderNature,
+                  attackerItem, defenderItem,
+                  battleConfig.level,
+                );
+                void navigator.clipboard.writeText(text).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+              className={`flex items-center gap-1.5 text-[11px] transition ${copied ? "text-green-400" : "text-zinc-600 hover:text-zinc-300"}`}
+            >
+              {copied ? (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  </svg>
+                  <span>Copy to Showdown calc</span>
+                </>
+              )}
+            </button>
+          ) : <span />}
+
           {/* Hotkey hint — full cheat sheet opens with "/" */}
           <button
             onClick={() => setHotkeyModalOpen(true)}
             className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-zinc-400"
           >
-            <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">/</kbd>
-            <span>Keyboard shortcuts</span>
+            <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-400">/</kbd>
+            <span className="text-zinc-400">Keyboard shortcuts</span>
           </button>
         </div>
 

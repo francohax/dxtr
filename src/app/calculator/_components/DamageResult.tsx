@@ -133,7 +133,7 @@ export function DamageResultCard({
             const remainHp = Math.max(0, defHp - result.max);
             return (
               <div className="flex flex-col gap-1.5">
-                <div className="relative h-3 w-full overflow-hidden rounded-full bg-zinc-800/70">
+                <div className="relative h-3 w-86 overflow-hidden rounded-full bg-zinc-800/70">
                   <div
                     className={`absolute inset-y-0 left-0 transition-all duration-500 ${remainColour}`}
                     style={{ width: `${remainPct}%` }}
@@ -147,7 +147,7 @@ export function DamageResultCard({
                     style={{ width: `${minPct}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] tabular-nums text-zinc-600">
+                <div className="flex justify-between text-[10px] tabular-nums text-zinc-400">
                   <span>{remainHp} HP remaining</span>
                   <span>{Math.round((result.max / defHp) * 100)}% max damage</span>
                 </div>
@@ -160,7 +160,7 @@ export function DamageResultCard({
         <div className="hidden w-px self-stretch bg-zinc-700/50 lg:block" />
 
         {/* Right zone: damage range + OHKO */}
-        <div className="flex flex-col gap-3 lg:items-end">
+        <div className="w-48 flex flex-col gap-3 lg:items-end">
           <div className="lg:text-right">
             <div className="flex items-end gap-2 lg:justify-end">
               <span className="text-4xl font-black tabular-nums leading-none text-white">

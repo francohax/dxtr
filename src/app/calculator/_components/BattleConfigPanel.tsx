@@ -56,7 +56,7 @@ function PillGrid<T extends string>({ label, options, selected, onSelect, contai
       onFocus={() => setKbIndex(0)}
       onBlur={() => setKbIndex(-1)}
       onKeyDown={handleKeyDown}
-      className="flex flex-1 flex-col gap-1.5 rounded-lg outline-none focus:ring-1 focus:ring-violet-500/40 focus:ring-offset-1 focus:ring-offset-zinc-950"
+      className="px-2 py-1 flex flex-1 flex-col gap-1.5 rounded-lg outline-none focus:ring-1 focus:ring-violet-500/40 focus:ring-offset-1 focus:ring-offset-zinc-950"
     >
       <span className="text-xs font-medium text-zinc-500">{label}</span>
       <div className="grid grid-cols-2 gap-1.5">
@@ -100,7 +100,7 @@ function ToggleButton({ label, active, onToggle, activeClass, icon, activeLabel,
         role="switch"
         aria-checked={active}
         onClick={onToggle}
-        className={`flex h-[34px] items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition ${
+        className={`flex h-[32px] items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition ${
           active ? activeClass : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
         }`}
       >
@@ -139,7 +139,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef, weatherRef,
       <div className="flex flex-col gap-3">
 
         {/* Weather + Terrain grids side by side */}
-        <div className="flex gap-4">
+        <div className="flex gap-1">
           <PillGrid
             label="Weather"
             options={WEATHER_OPTIONS}
@@ -208,7 +208,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef, weatherRef,
 
           {/* Active modifier effect hints */}
           {hasActive && (
-            <div className="w-full h-15 px-2 mt-3 flex flex-wrap gap-0.5">
+            <div className="px-6 w-full h-15 px-2 mt-3 flex flex-wrap gap-x-2">
               {config.weather !== "none" && (
                 <span className="h-5 rounded-lg bg-blue-950/50 px-2 py-0.5 text-xs font-medium text-blue-300 ring-1 ring-blue-800/50">
                   {config.weather === "sun" ? "Fire ×1.5 · Water ×0.5" :

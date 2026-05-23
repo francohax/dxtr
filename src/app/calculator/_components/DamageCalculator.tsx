@@ -150,6 +150,7 @@ export function DamageCalculator() {
           moveName={result.move.name}
           attackerName={attacker.name}
           defenderName={defender.name}
+          defenderBaseHp={defender.baseStats.hp}
         />
       )}
     </div>

@@ -45,8 +45,8 @@ function getTerrainMult(terrain: Terrain | undefined, moveType: PokemonType | un
   return 1;
 }
 
-export function calcEffectiveStat(base: number, ev: number, level: number, natureMult = 1): number {
-  return Math.floor((Math.floor((2 * base + Math.floor(ev / 4)) * level / 100) + 5) * natureMult);
+export function calcEffectiveStat(base: number, ev: number, level: number, natureMult = 1, ivs = 31): number {
+  return Math.floor((Math.floor((2 * base + ivs + Math.floor(ev / 4)) * level / 100) + 5) * natureMult);
 }
 
 export function getStatStageMult(stage: number): number {
@@ -61,16 +61,41 @@ export function calculateDamage(input: DamageInput): DamageResult {
   const terrainMult = getTerrainMult(terrain, moveType);
   const critMult    = isCritical ? 1.5 : 1.0;
   const itemMult    = attackerDamageMult ?? 1;
-  const base     = (((2 * level) / 5 + 2) * power * (attackStat / defenseStat)) / 50 + 2;
-  const modified = base * stabMult * typeEffectiveness * weatherMult * terrainMult * critMult * itemMult;
+
+  // Game's 4096-based chain modifier (matches pokeRound half-up rounding)
+  function chainMod(d: number, mod4096: number): number {
+    return Math.max(1, d + Math.floor((d * (mod4096 - 4096) + 2048) / 4096));
+  }
+
+  // Base damage with two intermediate floors matching game mechanics
+  const levelFactor = Math.floor(2 * level / 5 + 2);
+  const base = Math.floor(Math.floor(levelFactor * power * attackStat / defenseStat) / 50) + 2;
+
+  // Modifiers applied in game order: roll first, then chain mods
+  function applyMods(roll: number): number {
+    let d = Math.floor(base * roll / 100);
+    if (stab)                d = chainMod(d, 6144);                              // STAB = 3/2
+    if (typeEffectiveness !== 1) d = Math.floor(d * typeEffectiveness);           // type uses floor
+    if (weatherMult !== 1)   d = chainMod(d, Math.round(weatherMult * 4096));    // weather
+    if (terrainMult !== 1)   d = chainMod(d, Math.round(terrainMult * 4096));    // terrain
+    if (isCritical)          d = chainMod(d, 6144);                              // crit = 3/2
+    if (itemMult !== 1)      d = chainMod(d, Math.round(itemMult * 4096));       // item
+    return d;
+  }
+
+  const rolls = Array.from({ length: 16 }, (_, i) => applyMods(85 + i));
+  const min     = Math.min(...rolls);
+  const max     = Math.max(...rolls);
+  const average = Math.round(rolls.reduce((a, b) => a + b, 0) / rolls.length);
+
   return {
-    min: Math.floor(modified * 0.85),
-    max: Math.floor(modified),
-    average: Math.floor(modified * 0.925),
+    min,
+    max,
+    average,
     stab: stabMult,
     typeEffectiveness,
-    baseDamage: Math.floor(base),
-    modifiedBeforeRandom: modified,
+    baseDamage: base,
+    modifiedBeforeRandom: base * stabMult * typeEffectiveness * weatherMult * terrainMult * critMult * itemMult,
     weatherMult,
     terrainMult,
     critMult,

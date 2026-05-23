@@ -9,17 +9,19 @@ interface DamageResultCardProps {
 
 export function DamageResultCard({ result, moveName, attackerName, defenderName }: DamageResultCardProps) {
   const effectLabel =
-    result.typeEffectiveness === 0 ? "No effect" :
-    result.typeEffectiveness < 1   ? "Not very effective…" :
-    result.typeEffectiveness === 1 ? "Normal" :
-    result.typeEffectiveness <= 2  ? "Super effective!" :
-                                     "Super effective!! (4×)";
+    result.typeEffectiveness === 0    ? "Immune — no effect" :
+    result.typeEffectiveness === 0.25 ? "Doubly resisted (¼×)" :
+    result.typeEffectiveness < 1      ? "Not very effective… (½×)" :
+    result.typeEffectiveness === 1    ? "Neutral" :
+    result.typeEffectiveness === 2    ? "Super effective! (2×)" :
+                                        "Doubly super effective! (4×)";
 
   const effectColour =
-    result.typeEffectiveness === 0 ? "text-zinc-500" :
-    result.typeEffectiveness < 1   ? "text-orange-400" :
-    result.typeEffectiveness === 1 ? "text-zinc-300" :
-                                     "text-green-400";
+    result.typeEffectiveness === 0    ? "text-zinc-600" :
+    result.typeEffectiveness < 1      ? "text-orange-400" :
+    result.typeEffectiveness === 1    ? "text-zinc-400" :
+    result.typeEffectiveness === 2    ? "text-green-400" :
+                                        "text-emerald-300 font-black";
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">

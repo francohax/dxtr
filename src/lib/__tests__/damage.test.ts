@@ -52,4 +52,39 @@ describe("getTypeEffectiveness", () => {
   it("neutral returns 1", () => {
     expect(getTypeEffectiveness("normal", ["normal"])).toBe(1);
   });
+
+  // x4 scenarios — dual-type defenders, both weak to the move
+  it("electric x4 vs water/flying (Gyarados)", () => {
+    expect(getTypeEffectiveness("electric", ["water", "flying"])).toBe(4);
+  });
+
+  it("grass x4 vs water/ground (Swampert)", () => {
+    expect(getTypeEffectiveness("grass", ["water", "ground"])).toBe(4);
+  });
+
+  it("rock x4 vs fire/flying (Charizard)", () => {
+    expect(getTypeEffectiveness("rock", ["fire", "flying"])).toBe(4);
+  });
+
+  it("ice x4 vs ground/flying (Landorus)", () => {
+    expect(getTypeEffectiveness("ice", ["ground", "flying"])).toBe(4);
+  });
+
+  it("fighting x4 vs rock/dark (Tyranitar)", () => {
+    expect(getTypeEffectiveness("fighting", ["rock", "dark"])).toBe(4);
+  });
+
+  it("ground x4 vs fire/steel (Heatran)", () => {
+    expect(getTypeEffectiveness("ground", ["fire", "steel"])).toBe(4);
+  });
+
+  // 0.25x scenarios — dual-type defenders, both resist the move
+  it("fire 0.25x vs water/rock (Kabutops)", () => {
+    expect(getTypeEffectiveness("fire", ["water", "rock"])).toBe(0.25);
+  });
+
+  // Immunity overrides super-effectiveness
+  it("normal is immune vs ghost/flying (Gengar form)", () => {
+    expect(getTypeEffectiveness("normal", ["ghost", "flying"])).toBe(0);
+  });
 });

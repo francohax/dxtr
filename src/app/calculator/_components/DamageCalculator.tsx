@@ -12,6 +12,8 @@ import {
   type BattleConfig,
   DEFAULT_BATTLE_CONFIG,
 } from "~/lib/types";
+import { getNatureMult, type NatureKey } from "~/lib/natures";
+import { getItemAttackMult, getItemDefenseMult, getItemDamageMult, type CompetitiveItem } from "~/lib/items";
 import { DamageResultCard } from "./DamageResult";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { SkeletonBlock } from "~/app/_components/SkeletonBlock";
@@ -19,6 +21,8 @@ import { PokemonPickerModal } from "./PokemonPickerModal";
 import { MoveFuzzySearch } from "./MoveFuzzySearch";
 import { BattleConfigPanel } from "./BattleConfigPanel";
 import { StatStagePanel } from "./StatStagePanel";
+import { ItemSearch } from "./ItemSearch";
+import { NatureSelect } from "./NatureSelect";
 import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 import { useCalculatorKeyboard } from "~/hooks/useCalculatorKeyboard";
 import { useFocusChain, type FocusChainEntry } from "~/hooks/useFocusChain";
@@ -41,18 +45,25 @@ interface EvPanelProps {
   activeKey?: string;
   onChange: (key: string, value: number) => void;
   kbFocused?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  natureMults?: Record<string, number>;
 }
 
-function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused }: EvPanelProps) {
+function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused, containerRef, natureMults }: EvPanelProps) {
   return (
-    <div className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition ${kbFocused
-      ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
-      : "border-zinc-700/40 bg-zinc-800/20"
-      }`}>
+    <div
+      ref={containerRef}
+      tabIndex={containerRef ? 0 : undefined}
+      className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition outline-none ${kbFocused
+        ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
+        : "border-zinc-700/40 bg-zinc-800/20"
+      }`}
+    >
       <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">EVs</span>
       {stats.map(({ key, label, base }) => {
         const ev = evs[key] ?? 0;
-        const effective = calcEffectiveStat(base, ev, level);
+        const natureMult = natureMults?.[key] ?? 1;
+        const effective = calcEffectiveStat(base, ev, level, natureMult);
         const isActive = key === activeKey;
         return (
           <div key={key} className={`flex flex-col gap-1 transition-opacity ${isActive ? "opacity-100" : "opacity-40"}`}>
@@ -92,9 +103,10 @@ interface PokemonSlotCardProps {
   onOpenPicker: () => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   kbHighlighted?: boolean;
+  item?: CompetitiveItem | null;
 }
 
-function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, kbHighlighted }: PokemonSlotCardProps) {
+function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, kbHighlighted, item }: PokemonSlotCardProps) {
   const typeColor = value?.types[0] ? `var(--color-type-${value.types[0]})` : undefined;
 
   if (isLoading) {
@@ -132,7 +144,19 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
             }`}
         >
           <div className="relative flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-800/80">
-            <Image src={value.sprite} alt={value.name} width={72} height={72} unoptimized className="drop-shadow-lg transition-transform duration-200 group-hover:scale-105" />
+            <Image
+              src={value.sprite}
+              alt={value.name}
+              width={72}
+              height={72}
+              unoptimized
+              className={`drop-shadow-lg transition-transform duration-200 ${kbHighlighted ? "scale-105" : "group-hover:scale-105"}`}
+            />
+            {item?.spriteUrl && (
+              <div className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 shadow-sm">
+                <Image src={item.spriteUrl} alt={item.name} width={16} height={16} unoptimized />
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm font-bold capitalize tracking-tight text-white">{value.name}</p>
@@ -198,11 +222,42 @@ export function DamageCalculator() {
     { staleTime: Infinity },
   );
   const utils = api.useUtils();
+  const [attackerItem, setAttackerItem] = useState<CompetitiveItem | null>(null);
+  const [defenderItem, setDefenderItem] = useState<CompetitiveItem | null>(null);
+  const [attackerNature, setAttackerNature] = useState<NatureKey>("hardy");
+  const [defenderNature, setDefenderNature] = useState<NatureKey>("hardy");
+
+  const attackerNatureMults = useMemo<Record<string, number>>(() => ({
+    attack:    getNatureMult(attackerNature, "attack"),
+    spAttack:  getNatureMult(attackerNature, "spAttack"),
+    defense:   getNatureMult(attackerNature, "defense"),
+    spDefense: getNatureMult(attackerNature, "spDefense"),
+  }), [attackerNature]);
+
+  const defenderNatureMults = useMemo<Record<string, number>>(() => ({
+    attack:    getNatureMult(defenderNature, "attack"),
+    spAttack:  getNatureMult(defenderNature, "spAttack"),
+    defense:   getNatureMult(defenderNature, "defense"),
+    spDefense: getNatureMult(defenderNature, "spDefense"),
+  }), [defenderNature]);
+
   const moveInputRef = useRef<HTMLInputElement>(null);
   const openMovePickerRef = useRef<(() => void) | null>(null);
   const attackerCardRef = useRef<HTMLDivElement>(null);
   const defenderCardRef = useRef<HTMLDivElement>(null);
   const levelInputRef = useRef<HTMLInputElement>(null);
+  const attackerItemRef   = useRef<HTMLInputElement>(null);
+  const attackerNatureRef = useRef<HTMLSelectElement>(null);
+  const defenderItemRef   = useRef<HTMLInputElement>(null);
+  const defenderNatureRef = useRef<HTMLSelectElement>(null);
+  const attackerEvRef     = useRef<HTMLDivElement>(null);
+  const defenderEvRef     = useRef<HTMLDivElement>(null);
+  const attackerStageRef  = useRef<HTMLDivElement>(null);
+  const defenderStageRef  = useRef<HTMLDivElement>(null);
+  const weatherRef        = useRef<HTMLDivElement>(null);
+  const terrainRef        = useRef<HTMLDivElement>(null);
+  const critRef           = useRef<HTMLButtonElement>(null);
+  const burnRef           = useRef<HTMLButtonElement>(null);
 
   const attackerActiveKey = move
     ? (move.category === "physical" ? "attack" : move.category === "special" ? "spAttack" : undefined)
@@ -220,52 +275,54 @@ export function DamageCalculator() {
 
     const level = battleConfig.level;
     const isPhysical = move.category === "physical";
-    const isSpecial = move.category === "special";
+    const isSpecial  = move.category === "special";
 
-    const attackKey = isPhysical ? "attack" : "spAttack";
+    const attackKey  = isPhysical ? "attack"  : "spAttack";
     const defenseKey = isPhysical ? "defense" : "spDefense";
 
     let attackStat = isPhysical
-      ? calcEffectiveStat(attacker.baseStats.attack, attackerEvs.attack ?? 0, level)
+      ? calcEffectiveStat(attacker.baseStats.attack,    attackerEvs.attack    ?? 0, level, getNatureMult(attackerNature, "attack"))
       : isSpecial
-        ? calcEffectiveStat(attacker.baseStats.spAttack, attackerEvs.spAttack ?? 0, level)
+        ? calcEffectiveStat(attacker.baseStats.spAttack, attackerEvs.spAttack ?? 0, level, getNatureMult(attackerNature, "spAttack"))
         : 0;
 
     let defenseStat = isPhysical
-      ? calcEffectiveStat(defender.baseStats.defense, defenderEvs.defense ?? 0, level)
+      ? calcEffectiveStat(defender.baseStats.defense,   defenderEvs.defense   ?? 0, level, getNatureMult(defenderNature, "defense"))
       : isSpecial
-        ? calcEffectiveStat(defender.baseStats.spDefense, defenderEvs.spDefense ?? 0, level)
+        ? calcEffectiveStat(defender.baseStats.spDefense, defenderEvs.spDefense ?? 0, level, getNatureMult(defenderNature, "spDefense"))
         : 0;
 
-    const atkStageMult = getStatStageMult(attackerStages[attackKey] ?? 0);
+    const atkStageMult = getStatStageMult(attackerStages[attackKey]  ?? 0);
     const defStageMult = getStatStageMult(defenderStages[defenseKey] ?? 0);
-    attackStat = Math.floor(attackStat * atkStageMult);
+    attackStat  = Math.floor(attackStat  * atkStageMult);
     defenseStat = Math.floor(defenseStat * defStageMult);
 
     if (battleConfig.attackerBurned && isPhysical) {
       attackStat = Math.floor(attackStat / 2);
     }
 
+    if (attackerItem) attackStat  = Math.floor(attackStat  * getItemAttackMult(attackerItem,  move.category));
+    if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category));
+
     const stab = attacker.types.includes(move.type as PokemonType);
-    const te = getTypeEffectiveness(move.type as PokemonType, defender.types as PokemonType[]);
+    const te   = getTypeEffectiveness(move.type as PokemonType, defender.types as PokemonType[]);
+
+    const attackerDamageMult = attackerItem
+      ? getItemDamageMult(attackerItem, move.type as PokemonType, te)
+      : 1;
+
     const dmg = calculateDamage({
-      level,
-      power: move.power,
-      attackStat,
-      defenseStat,
-      stab,
-      typeEffectiveness: te,
-      moveType: move.type as PokemonType,
-      weather: battleConfig.weather,
-      terrain: battleConfig.terrain,
-      isCritical: battleConfig.isCritical,
+      level, power: move.power, attackStat, defenseStat, stab,
+      typeEffectiveness: te, moveType: move.type as PokemonType,
+      weather: battleConfig.weather, terrain: battleConfig.terrain,
+      isCritical: battleConfig.isCritical, attackerDamageMult,
     });
 
     const combinedStage = atkStageMult * defStageMult;
     if (combinedStage !== 1) dmg.stageMult = combinedStage;
 
     setResult({ dmg, move });
-  }, [attacker, defender, move, battleConfig, attackerEvs, defenderEvs, attackerStages, defenderStages]);
+  }, [attacker, defender, move, battleConfig, attackerEvs, defenderEvs, attackerStages, defenderStages, attackerItem, defenderItem, attackerNature, defenderNature]);
 
   const randomizeBattle = useCallback(async () => {
     if (allNames.length === 0) return;
@@ -353,13 +410,44 @@ export function DamageCalculator() {
   });
 
   const focusChain = useMemo<FocusChainEntry[]>(() => [
-    { id: "attacker-card", getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "defender-card", getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "move-search", getElement: () => moveInputRef.current },
-    { id: "level-input", getElement: () => levelInputRef.current },
+    { id: "attacker-card",   getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
+    { id: "attacker-item",   getElement: () => attackerItemRef.current },
+    { id: "attacker-nature", getElement: () => attackerNatureRef.current },
+    { id: "defender-card",   getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
+    { id: "defender-item",   getElement: () => defenderItemRef.current },
+    { id: "defender-nature", getElement: () => defenderNatureRef.current },
+    { id: "move-area",       getElement: () => moveInputRef.current },
+    { id: "attacker-ev",     getElement: () => attackerEvRef.current },
+    { id: "defender-ev",     getElement: () => defenderEvRef.current },
+    { id: "attacker-stage",  getElement: () => attackerStageRef.current },
+    { id: "defender-stage",  getElement: () => defenderStageRef.current },
+    { id: "weather",         getElement: () => weatherRef.current },
+    { id: "terrain",         getElement: () => terrainRef.current },
+    { id: "level-input",     getElement: () => levelInputRef.current },
+    { id: "crit",            getElement: () => critRef.current },
+    { id: "burn",            getElement: () => burnRef.current },
   ], []);
 
-  useFocusChain(focusChain);
+  useFocusChain(focusChain, (id) => {
+    const atkAttr = move?.category === "physical" ? "attack"  : move?.category === "special" ? "spAttack"  : null;
+    const defAttr = move?.category === "physical" ? "defense" : move?.category === "special" ? "spDefense" : null;
+
+    if (id === "attacker-card" || id === "attacker-item" || id === "attacker-nature") {
+      setKbState({ slot: "attacker", panel: null, attribute: null });
+    } else if (id === "defender-card" || id === "defender-item" || id === "defender-nature") {
+      setKbState({ slot: "defender", panel: null, attribute: null });
+    } else if (id === "attacker-ev") {
+      setKbState({ slot: "attacker", panel: "ev", attribute: atkAttr });
+    } else if (id === "defender-ev") {
+      setKbState({ slot: "defender", panel: "ev", attribute: defAttr });
+    } else if (id === "attacker-stage") {
+      setKbState({ slot: "attacker", panel: "stage", attribute: atkAttr });
+    } else if (id === "defender-stage") {
+      setKbState({ slot: "defender", panel: "stage", attribute: defAttr });
+    } else {
+      setKbState({ slot: null, panel: null, attribute: null });
+    }
+  });
 
   // Keyboard override: if user selected an attribute via keyboard, use it instead of move-derived key
   const effectiveAttackerKey = kbState.slot === "attacker" && kbState.attribute
@@ -437,27 +525,37 @@ export function DamageCalculator() {
 
         {/* Pokemon pickers */}
         <div className="relative grid grid-cols-2 gap-2">
-          <PokemonSlotCard
-            label="Attacker"
-            value={attacker}
-            isLoading={loadingAttacker}
-            onOpenPicker={() => { setAttackerModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
-            containerRef={attackerCardRef}
-            kbHighlighted={kbState.slot === "attacker"}
-          />
-          <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+          <div className="flex flex-col gap-2">
+            <PokemonSlotCard
+              label="Attacker"
+              value={attacker}
+              isLoading={loadingAttacker}
+              onOpenPicker={() => { setAttackerModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
+              containerRef={attackerCardRef}
+              kbHighlighted={kbState.slot === "attacker"}
+              item={attackerItem}
+            />
+            <ItemSearch value={attackerItem} onChange={setAttackerItem} containerRef={attackerItemRef} />
+            <NatureSelect value={attackerNature} onChange={setAttackerNature} containerRef={attackerNatureRef} />
+          </div>
+          <div className="pointer-events-none absolute top-[4.5rem] left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-xs font-black tracking-tight text-zinc-500 shadow-lg">
               vs
             </div>
           </div>
-          <PokemonSlotCard
-            label="Defender"
-            value={defender}
-            isLoading={loadingDefender}
-            onOpenPicker={() => { setDefenderModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
-            containerRef={defenderCardRef}
-            kbHighlighted={kbState.slot === "defender"}
-          />
+          <div className="flex flex-col gap-2">
+            <PokemonSlotCard
+              label="Defender"
+              value={defender}
+              isLoading={loadingDefender}
+              onOpenPicker={() => { setDefenderModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
+              containerRef={defenderCardRef}
+              kbHighlighted={kbState.slot === "defender"}
+              item={defenderItem}
+            />
+            <ItemSearch value={defenderItem} onChange={setDefenderItem} containerRef={defenderItemRef} />
+            <NatureSelect value={defenderNature} onChange={setDefenderNature} containerRef={defenderNatureRef} />
+          </div>
         </div>
 
         {/* EV panels + Stat stage panels */}
@@ -473,6 +571,8 @@ export function DamageCalculator() {
                     activeKey={effectiveAttackerKey}
                     onChange={(key, val) => setAttackerEvs(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "attacker" && kbState.panel === "ev"}
+                    containerRef={attackerEvRef}
+                    natureMults={attackerNatureMults}
                   />
                   <StatStagePanel
                     stats={attackerStageStats}
@@ -480,6 +580,7 @@ export function DamageCalculator() {
                     activeKey={effectiveAttackerKey}
                     onChange={(key, val) => setAttackerStages(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "attacker" && kbState.panel === "stage"}
+                    containerRef={attackerStageRef}
                   />
                 </>
               ) : (
@@ -503,6 +604,8 @@ export function DamageCalculator() {
                     activeKey={effectiveDefenderKey}
                     onChange={(key, val) => setDefenderEvs(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "defender" && kbState.panel === "ev"}
+                    containerRef={defenderEvRef}
+                    natureMults={defenderNatureMults}
                   />
                   <StatStagePanel
                     stats={defenderStageStats}
@@ -510,6 +613,7 @@ export function DamageCalculator() {
                     activeKey={effectiveDefenderKey}
                     onChange={(key, val) => setDefenderStages(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "defender" && kbState.panel === "stage"}
+                    containerRef={defenderStageRef}
                   />
                 </>
               ) : (
@@ -533,11 +637,13 @@ export function DamageCalculator() {
 
         <div className="h-full p-4 text-end">
           {/* Hotkey hint — full cheat sheet opens with "/" */}
-          <div className="flex items-center justify-end gap-1.5 text-[11px] text-zinc-700"
+          <button
+            onClick={() => setHotkeyModalOpen(true)}
+            className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-zinc-400"
           >
             <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">/</kbd>
-            <span className="text-zinc-400">Keyboard shortcuts</span>
-          </div>
+            <span>Keyboard shortcuts</span>
+          </button>
         </div>
 
         {/* Move section — z-10 keeps dropdown above anything below */}
@@ -558,6 +664,10 @@ export function DamageCalculator() {
           config={battleConfig}
           onChange={setBattleConfig}
           levelInputRef={levelInputRef}
+          weatherRef={weatherRef}
+          terrainRef={terrainRef}
+          critRef={critRef}
+          burnRef={burnRef}
         />
 
       </div>

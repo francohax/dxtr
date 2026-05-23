@@ -11,6 +11,7 @@ export interface DamageInput {
   weather?: Weather;
   terrain?: Terrain;
   isCritical?: boolean;
+  attackerDamageMult?: number;
 }
 
 export interface DamageResult {
@@ -24,6 +25,7 @@ export interface DamageResult {
   weatherMult: number;
   terrainMult: number;
   critMult: number;
+  itemMult?: number;
   stageMult?: number;
 }
 
@@ -43,8 +45,8 @@ function getTerrainMult(terrain: Terrain | undefined, moveType: PokemonType | un
   return 1;
 }
 
-export function calcEffectiveStat(base: number, ev: number, level: number): number {
-  return Math.floor(Math.floor((2 * base + Math.floor(ev / 4)) * level / 100) + 5);
+export function calcEffectiveStat(base: number, ev: number, level: number, natureMult = 1): number {
+  return Math.floor((Math.floor((2 * base + Math.floor(ev / 4)) * level / 100) + 5) * natureMult);
 }
 
 export function getStatStageMult(stage: number): number {
@@ -53,13 +55,14 @@ export function getStatStageMult(stage: number): number {
 }
 
 export function calculateDamage(input: DamageInput): DamageResult {
-  const { level, power, attackStat, defenseStat, stab, typeEffectiveness, moveType, weather, terrain, isCritical } = input;
+  const { level, power, attackStat, defenseStat, stab, typeEffectiveness, moveType, weather, terrain, isCritical, attackerDamageMult } = input;
   const stabMult    = stab ? 1.5 : 1.0;
   const weatherMult = getWeatherMult(weather, moveType);
   const terrainMult = getTerrainMult(terrain, moveType);
   const critMult    = isCritical ? 1.5 : 1.0;
+  const itemMult    = attackerDamageMult ?? 1;
   const base     = (((2 * level) / 5 + 2) * power * (attackStat / defenseStat)) / 50 + 2;
-  const modified = base * stabMult * typeEffectiveness * weatherMult * terrainMult * critMult;
+  const modified = base * stabMult * typeEffectiveness * weatherMult * terrainMult * critMult * itemMult;
   return {
     min: Math.floor(modified * 0.85),
     max: Math.floor(modified),
@@ -71,6 +74,7 @@ export function calculateDamage(input: DamageInput): DamageResult {
     weatherMult,
     terrainMult,
     critMult,
+    itemMult: itemMult !== 1 ? itemMult : undefined,
   };
 }
 

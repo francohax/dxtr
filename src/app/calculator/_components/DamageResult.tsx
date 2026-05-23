@@ -33,7 +33,7 @@ export function DamageResultCard({
     result.typeEffectiveness < 1      ? "Not very effective (½×)" :
     result.typeEffectiveness === 1    ? "Neutral" :
     result.typeEffectiveness === 2    ? "Super effective! (2×)" :
-                                        "Doubly super effective! (4×)";
+                                        "Extremely effective! (4×)";
 
   const effectColour =
     result.typeEffectiveness === 0    ? "text-zinc-600" :
@@ -62,7 +62,7 @@ export function DamageResultCard({
       {/* Move-type top accent */}
       {moveType && (
         <div
-          className="absolute inset-x-0 top-0 h-[10px] opacity-70"
+          className="absolute inset-x-0 top-0 h-[5px] opacity-70"
           style={{ background: `var(--color-type-${moveType})` }}
         />
       )}

@@ -100,7 +100,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef }: BattleCon
 
   return (
     <div className="glass-card p-4">
-      <span className="mb-3 block text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
+      <span className="mb-3 block text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
         Battle Config
       </span>
 

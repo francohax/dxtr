@@ -12,7 +12,7 @@ function StatStageRow({ label, statKey, stage, isActive, onChange }: StatStageRo
   const valueColour =
     stage > 0 ? "text-green-400" :
     stage < 0 ? "text-red-400" :
-                "text-zinc-600";
+                "text-zinc-400";
   const valueBg =
     stage > 0 ? "bg-green-900/25" :
     stage < 0 ? "bg-red-900/25" :
@@ -68,7 +68,7 @@ export function StatStagePanel({ stats, stages, activeKey, onChange, kbFocused }
         ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
         : "border-zinc-700/40 bg-zinc-800/20"
     }`}>
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Stages</span>
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Stages</span>
       {stats.map(({ key, label }) => (
         <StatStageRow
           key={key}

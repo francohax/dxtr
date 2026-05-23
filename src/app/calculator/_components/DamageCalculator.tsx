@@ -49,7 +49,7 @@ function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused }: EvPanelP
       ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
       : "border-zinc-700/40 bg-zinc-800/20"
       }`}>
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">EVs</span>
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">EVs</span>
       {stats.map(({ key, label, base }) => {
         const ev = evs[key] ?? 0;
         const effective = calcEffectiveStat(base, ev, level);
@@ -61,7 +61,7 @@ function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused }: EvPanelP
                 {label}
               </span>
               <div className="flex items-center gap-2.5">
-                <span className="text-[10px] tabular-nums text-zinc-600">{ev} EV</span>
+                <span className="text-[10px] tabular-nums text-zinc-400">{ev} EV</span>
                 <span className={`min-w-[2rem] text-right text-[11px] font-bold tabular-nums ${isActive ? "text-violet-400" : "text-zinc-500"}`}>
                   {effective}
                 </span>
@@ -100,7 +100,7 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2" ref={containerRef}>
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">{label}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">{label}</span>
         <div className="relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-zinc-700/40 bg-zinc-800/20 p-4">
           <div className="shimmer absolute inset-0" />
           <SkeletonBlock className="h-20 w-20 rounded-xl" />
@@ -114,8 +114,11 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
   }
 
   return (
-    <div className="flex flex-col gap-2" ref={containerRef}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">{label}</span>
+    <div
+      className={`flex flex-col gap-1 rounded-xl transition`}
+      ref={containerRef}
+    >
+      <span className="pl-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">{label}</span>
       {value ? (
         <div
           role="button"
@@ -123,21 +126,13 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
           onClick={onOpenPicker}
           onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpenPicker(); }}
           style={typeColor ? { "--type-glow": typeColor } as React.CSSProperties : undefined}
-          className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border bg-zinc-800/30 p-4 backdrop-blur-sm transition-all duration-200 ${
-            kbHighlighted
-              ? "border-[var(--type-glow,theme(colors.zinc.600))] shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
-              : "border-zinc-700/50 hover:border-[var(--type-glow,theme(colors.zinc.600))] hover:shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
-          }`}
+          className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border bg-zinc-800/30 p-4 backdrop-blur-sm transition-all duration-200 ${kbHighlighted
+            ? "border-[var(--type-glow,theme(colors.zinc.600))] shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
+            : "border-zinc-700/50 hover:border-[var(--type-glow,theme(colors.zinc.600))] hover:shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
+            }`}
         >
           <div className="relative flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-800/80">
-            <Image
-              src={value.sprite}
-              alt={value.name}
-              width={72}
-              height={72}
-              unoptimized
-              className={`drop-shadow-lg transition-transform duration-200 ${kbHighlighted ? "scale-105" : "group-hover:scale-105"}`}
-            />
+            <Image src={value.sprite} alt={value.name} width={72} height={72} unoptimized className="drop-shadow-lg transition-transform duration-200 group-hover:scale-105" />
           </div>
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm font-bold capitalize tracking-tight text-white">{value.name}</p>
@@ -145,20 +140,14 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
               {value.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
             </div>
           </div>
-          <div className={`absolute inset-x-0 bottom-0 flex items-center justify-center rounded-b-2xl py-1.5 transition ${
-            kbHighlighted ? "bg-zinc-800/60 opacity-100" : "bg-zinc-800/0 opacity-0 group-hover:bg-zinc-800/60 group-hover:opacity-100"
-          }`}>
+          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center rounded-b-2xl bg-zinc-800/0 py-1.5 opacity-0 transition group-hover:bg-zinc-800/60 group-hover:opacity-100">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Change</span>
           </div>
         </div>
       ) : (
         <button
           onClick={onOpenPicker}
-          className={`flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed py-5 backdrop-blur-sm transition-all duration-200 ${
-            kbHighlighted
-              ? "border-violet-500/60 bg-violet-900/10 shadow-[0_0_16px_rgb(124_58_237/0.12)]"
-              : "border-zinc-700/60 bg-zinc-800/20 hover:border-violet-500/60 hover:bg-violet-900/10 hover:shadow-[0_0_16px_rgb(124_58_237/0.12)]"
-          }`}
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-700/60 bg-zinc-800/20 py-5 backdrop-blur-sm transition-all duration-200 hover:border-violet-500/60 hover:bg-violet-900/10 hover:shadow-[0_0_16px_rgb(124_58_237/0.12)]"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-zinc-700 text-zinc-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -175,6 +164,7 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
+const ZERO_STAGES = { attack: 0, spAttack: 0, defense: 0, spDefense: 0 };
 
 export function DamageCalculator() {
   const [attacker, setAttacker] = useState<PokemonSummary | null>(null);
@@ -212,7 +202,6 @@ export function DamageCalculator() {
   const openMovePickerRef = useRef<(() => void) | null>(null);
   const attackerCardRef = useRef<HTMLDivElement>(null);
   const defenderCardRef = useRef<HTMLDivElement>(null);
-  const moveAreaRef = useRef<HTMLDivElement>(null);
   const levelInputRef = useRef<HTMLInputElement>(null);
 
   const attackerActiveKey = move
@@ -361,30 +350,16 @@ export function DamageCalculator() {
     defenderEvs,
     attackerStages,
     defenderStages,
-    moveCategory: move?.category,
   });
-
-  // When 1/2 keys set the slot, also move DOM focus to the card element
-  useEffect(() => {
-    if (kbState.slot === "attacker") {
-      attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button')?.focus();
-    } else if (kbState.slot === "defender") {
-      defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button')?.focus();
-    }
-  }, [kbState.slot]);
 
   const focusChain = useMemo<FocusChainEntry[]>(() => [
     { id: "attacker-card", getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
     { id: "defender-card", getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "move-area",     getElement: () => moveAreaRef.current?.querySelector<HTMLElement>('[role="button"][tabindex="0"], input') ?? null },
-    { id: "level-input",   getElement: () => levelInputRef.current },
+    { id: "move-search", getElement: () => moveInputRef.current },
+    { id: "level-input", getElement: () => levelInputRef.current },
   ], []);
 
-  useFocusChain(focusChain, (id) => {
-    if (id === "attacker-card") setKbState({ slot: "attacker", panel: null, attribute: null });
-    else if (id === "defender-card") setKbState({ slot: "defender", panel: null, attribute: null });
-    else setKbState({ slot: null, panel: null, attribute: null });
-  });
+  useFocusChain(focusChain);
 
   // Keyboard override: if user selected an attribute via keyboard, use it instead of move-derived key
   const effectiveAttackerKey = kbState.slot === "attacker" && kbState.attribute
@@ -419,10 +394,10 @@ export function DamageCalculator() {
   const showPokemonPanels = !!(attacker ?? loadingAttacker);
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-6">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-4">
 
       {/* ── LEFT COLUMN ── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2.5">
 
         {/* Random battle toggle */}
         <div className={`relative flex items-center justify-between rounded-xl border border-zinc-700/50 bg-zinc-800/30 px-4 py-3 backdrop-blur-sm transition-opacity ${namesLoading ? "opacity-60" : "opacity-100"}`}>
@@ -461,7 +436,7 @@ export function DamageCalculator() {
         </div>
 
         {/* Pokemon pickers */}
-        <div className="relative grid grid-cols-2 gap-3">
+        <div className="relative grid grid-cols-2 gap-2">
           <PokemonSlotCard
             label="Attacker"
             value={attacker}
@@ -487,8 +462,8 @@ export function DamageCalculator() {
 
         {/* EV panels + Stat stage panels */}
         {showPokemonPanels && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1.5">
               {attacker && !loadingAttacker ? (
                 <>
                   <EvPanel
@@ -518,7 +493,7 @@ export function DamageCalculator() {
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {defender && !loadingDefender ? (
                 <>
                   <EvPanel
@@ -554,33 +529,29 @@ export function DamageCalculator() {
       </div>
 
       {/* ── RIGHT COLUMN ── */}
-      <div className="flex h-full justify-end item-end flex-col gap-4">
+      <div className="flex h-full justify-end item-end flex-col gap-3.5">
 
         <div className="h-full p-4 text-end">
           {/* Hotkey hint — full cheat sheet opens with "/" */}
-          <div className="flex items-start justify-end gap-1.5 text-[11px] text-zinc-700">
+          <div className="flex items-center justify-end gap-1.5 text-[11px] text-zinc-700"
+          >
             <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">/</kbd>
-            <span>Keyboard shortcuts</span>
+            <span className="text-zinc-400">Keyboard shortcuts</span>
           </div>
         </div>
 
         {/* Move section — z-10 keeps dropdown above anything below */}
-        <div className="glass-card relative z-10 flex flex-col gap-2 p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Move</span>
-          <div ref={moveAreaRef}>
-            <MoveFuzzySearch
-              moveNames={attacker?.moveNames ?? []}
-              value={move}
-              isLoadingMove={loadingMove}
-              onSelect={m => setMove(m)}
-              onClear={() => setMove(null)}
-              inputRef={moveInputRef}
-              openModalRef={openMovePickerRef}
-              attackerSprite={attacker?.sprite}
-              attackerName={attacker?.name}
-            />
-          </div>
-        </div>
+        <MoveFuzzySearch
+          moveNames={attacker?.moveNames ?? []}
+          value={move}
+          isLoadingMove={loadingMove}
+          onSelect={m => setMove(m)}
+          onClear={() => setMove(null)}
+          inputRef={moveInputRef}
+          openModalRef={openMovePickerRef}
+          attackerSprite={attacker?.sprite}
+          attackerName={attacker?.name}
+        />
 
         {/* Battle config — at top of column */}
         <BattleConfigPanel
@@ -610,11 +581,11 @@ export function DamageCalculator() {
         <PokemonPickerModal
           label="Attacker"
           current={attacker}
-          onSelect={(p, evs, stages) => {
+          onSelect={p => {
             setAttacker(p);
             setMove(null);
-            setAttackerEvs(evs);
-            setAttackerStages(stages);
+            setAttackerEvs({ attack: 0, spAttack: 0 });
+            setAttackerStages({ ...ZERO_STAGES });
             setAttackerModalOpen(false);
           }}
           onClose={() => setAttackerModalOpen(false)}
@@ -624,10 +595,10 @@ export function DamageCalculator() {
         <PokemonPickerModal
           label="Defender"
           current={defender}
-          onSelect={(p, evs, stages) => {
+          onSelect={p => {
             setDefender(p);
-            setDefenderEvs(evs);
-            setDefenderStages(stages);
+            setDefenderEvs({ defense: 0, spDefense: 0 });
+            setDefenderStages({ ...ZERO_STAGES });
             setDefenderModalOpen(false);
           }}
           onClose={() => setDefenderModalOpen(false)}

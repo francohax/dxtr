@@ -19,7 +19,9 @@ export function Nav() {
         </Link>
         <ul className="flex gap-1">
           {links.map(({ href, label }) => {
-            const active = pathname.startsWith(href);
+            const active = href === "/calculator"
+              ? pathname === "/calculator" || pathname === "/"
+              : pathname.startsWith(href);
             return (
               <li key={href}>
                 <Link

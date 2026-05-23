@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/teams",      label: "Team Builder" },
   { href: "/calculator", label: "Damage Calc" },
+  { href: "/teams",      label: "Team Builder" },
 ];
 
 export function Nav() {
@@ -14,7 +14,7 @@ export function Nav() {
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/teams" className="text-lg font-bold tracking-tight text-white">
+        <Link href="/calculator" className="text-lg font-bold tracking-tight text-white">
           dxtr<span className="text-violet-400">.</span>
         </Link>
         <ul className="flex gap-1">

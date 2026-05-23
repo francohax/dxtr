@@ -7,8 +7,8 @@ import { TRPCReactProvider } from "~/trpc/react";
 import { Nav } from "~/app/_components/Nav";
 
 export const metadata: Metadata = {
-  title: "dxtr — Pokemon Team Builder",
-  description: "Build, save, and battle-test your Pokemon teams.",
+  title: "dxtr — Pokémon Damage Calculator",
+  description: "Simulate damage, OHKO odds, and type matchups at level 50.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 

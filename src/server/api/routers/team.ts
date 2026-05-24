@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { fetchPokemon } from "~/lib/pokeapi";
 import { type MoveCategory, type PokemonType, type TeamSlotConfig } from "~/lib/types";
 
@@ -39,12 +39,13 @@ const SlotInput = z.object({
 });
 
 export const teamRouter = createTRPCRouter({
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({ name: z.string().min(1).max(60), slots: z.array(SlotInput).min(1).max(6) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.team.create({
         data: {
-          name: input.name,
+          name:   input.name,
+          userId: ctx.userId,
           slots: {
             create: input.slots.map(slot => ({
               position: slot.position,
@@ -85,8 +86,9 @@ export const teamRouter = createTRPCRouter({
       });
     }),
 
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.team.findMany({
+      where:   { userId: ctx.userId },
       orderBy: { createdAt: "desc" },
       include: {
         slots: {
@@ -97,11 +99,11 @@ export const teamRouter = createTRPCRouter({
     });
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.team.findUnique({
-        where: { id: input.id },
+      return ctx.db.team.findFirst({
+        where: { id: input.id, userId: ctx.userId },
         include: {
           slots: {
             include: { moves: { orderBy: { position: "asc" } } },
@@ -111,11 +113,11 @@ export const teamRouter = createTRPCRouter({
       });
     }),
 
-  loadForBuilder: publicProcedure
+  loadForBuilder: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      const team = await ctx.db.team.findUnique({
-        where: { id: input.id },
+      const team = await ctx.db.team.findFirst({
+        where: { id: input.id, userId: ctx.userId },
         include: {
           slots: {
             include: { moves: { orderBy: { position: "asc" } } },
@@ -166,9 +168,9 @@ export const teamRouter = createTRPCRouter({
       return slots;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.team.delete({ where: { id: input.id } });
+      return ctx.db.team.deleteMany({ where: { id: input.id, userId: ctx.userId } });
     }),
 });

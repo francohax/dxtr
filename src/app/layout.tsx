@@ -5,7 +5,7 @@ import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "~/trpc/react";
-import { Nav } from "~/app/_components/Nav";
+import { SideNav } from "~/app/_components/SideNav";
 
 export const metadata: Metadata = {
   title: "dxtr — Pokémon Damage Calculator",
@@ -19,10 +19,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <ClerkProvider>
       <html lang="en" className={geist.variable}>
-        <body>
+        <body className="flex h-screen overflow-hidden bg-zinc-900 text-zinc-100">
           <TRPCReactProvider>
-            <Nav />
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
+            <SideNav />
+            <main className="flex-1 overflow-y-auto">
+              {children}
+            </main>
           </TRPCReactProvider>
         </body>
       </html>

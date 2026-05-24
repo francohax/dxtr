@@ -27,6 +27,8 @@ import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 import { useCalculatorKeyboard } from "~/hooks/useCalculatorKeyboard";
 import { useFocusChain, type FocusChainEntry } from "~/hooks/useFocusChain";
 import { HotkeyModal } from "./HotkeyModal";
+import { useAuth } from "@clerk/nextjs";
+import { defenderHpAtL50 } from "~/lib/ohko";
 
 const STORAGE_KEY = "dxtr-random-battle";
 
@@ -270,11 +272,16 @@ export function DamageCalculator() {
     return stored === null ? true : stored === "true";
   });
 
+  const { isSignedIn } = useAuth();
   const { data: allNames = [], isLoading: namesLoading } = api.pokemon.listNames.useQuery(
     undefined,
     { staleTime: Infinity },
   );
   const utils = api.useUtils();
+  const saveMutation = api.calc.save.useMutation({
+    onSuccess: () => void utils.calc.list.invalidate(),
+  });
+  const [savedFeedback, setSavedFeedback] = useState(false);
   const [attackerItem, setAttackerItem] = useState<CompetitiveItem | null>(null);
   const [defenderItem, setDefenderItem] = useState<CompetitiveItem | null>(null);
   const [attackerNature, setAttackerNature] = useState<NatureKey>("hardy");
@@ -780,6 +787,60 @@ export function DamageCalculator() {
             defenderName={defender.name}
             defenderBaseHp={defender.baseStats.hp}
           />
+          {isSignedIn && (
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={() => {
+                  const defHp = defenderHpAtL50(defender.baseStats.hp);
+                  saveMutation.mutate(
+                    {
+                      attackerName: attacker.name,
+                      attackerSprite: attacker.sprite,
+                      attackerTypes: attacker.types,
+                      defenderName: defender.name,
+                      defenderSprite: defender.sprite,
+                      defenderTypes: defender.types,
+                      moveName: result.move.name,
+                      moveType: result.move.type,
+                      movePower: result.move.power ?? null,
+                      minPercent: (result.dmg.min / defHp) * 100,
+                      maxPercent: (result.dmg.max / defHp) * 100,
+                    },
+                    {
+                      onSuccess: () => {
+                        setSavedFeedback(true);
+                        setTimeout(() => setSavedFeedback(false), 2000);
+                      },
+                    },
+                  );
+                }}
+                disabled={saveMutation.isPending}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  savedFeedback
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+                }`}
+              >
+                {savedFeedback ? (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Saved
+                  </>
+                ) : saveMutation.isPending ? (
+                  "Saving…"
+                ) : (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    Save calc
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

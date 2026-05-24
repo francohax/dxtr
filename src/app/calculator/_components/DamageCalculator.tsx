@@ -28,6 +28,14 @@ import { useFocusChain, type FocusChainEntry } from "~/hooks/useFocusChain";
 import { HotkeyModal } from "./HotkeyModal";
 import { useAuth } from "@clerk/nextjs";
 import { defenderHpAtL50 } from "~/lib/ohko";
+import { type RouterOutputs } from "~/trpc/react";
+
+type SavedCalc = RouterOutputs["calc"]["list"][number];
+
+interface DamageCalculatorProps {
+  loadRequest?: SavedCalc | null;
+  onLoadClear?: () => void;
+}
 
 const STORAGE_KEY = "dxtr-random-battle";
 
@@ -243,7 +251,7 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
 
 const ZERO_STAGES = { attack: 0, spAttack: 0, defense: 0, spDefense: 0 };
 
-export function DamageCalculator() {
+export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorProps = {}) {
   const [attacker, setAttacker] = useState<PokemonSummary | null>(null);
   const [defender, setDefender] = useState<PokemonSummary | null>(null);
   const [move, setMove] = useState<MoveDetail | null>(null);
@@ -281,6 +289,57 @@ export function DamageCalculator() {
     onSuccess: () => void utils.calc.list.invalidate(),
   });
   const [savedFeedback, setSavedFeedback] = useState(false);
+
+  function handleReset() {
+    setAttacker(null);
+    setDefender(null);
+    setMove(null);
+    setResult(null);
+    setAttackerItem(null);
+    setDefenderItem(null);
+    setAttackerNature("hardy");
+    setDefenderNature("hardy");
+    setAttackerEvs({ attack: 0, spAttack: 0 });
+    setDefenderEvs({ defense: 0, spDefense: 0 });
+    setAttackerStages({ attack: 0, spAttack: 0 });
+    setDefenderStages({ defense: 0, spDefense: 0 });
+    setBattleConfig(DEFAULT_BATTLE_CONFIG);
+  }
+
+  useEffect(() => {
+    if (!loadRequest) return;
+    const { attackerName, defenderName, moveName } = loadRequest;
+
+    setMove(null);
+    setAttacker(null);
+    setDefender(null);
+    setResult(null);
+    setLoadingAttacker(true);
+    setLoadingDefender(true);
+    setLoadingMove(true);
+
+    void (async () => {
+      const [att, def] = await Promise.all([
+        utils.pokemon.search.fetch({ query: attackerName }),
+        utils.pokemon.search.fetch({ query: defenderName }),
+      ]);
+      setAttacker(att);
+      setDefender(def);
+      setLoadingAttacker(false);
+      setLoadingDefender(false);
+
+      try {
+        const moveData = await utils.pokemon.getMove.fetch({ moveName });
+        setMove(moveData);
+      } catch {
+        // move may no longer exist
+      }
+      setLoadingMove(false);
+      onLoadClear?.();
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadRequest]);
+
   const [attackerItem, setAttackerItem] = useState<CompetitiveItem | null>(null);
   const [defenderItem, setDefenderItem] = useState<CompetitiveItem | null>(null);
   const [attackerNature, setAttackerNature] = useState<NatureKey>("hardy");
@@ -549,7 +608,7 @@ export function DamageCalculator() {
   const showPokemonPanels = !!(attacker ?? loadingAttacker);
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-4">
+    <div className="mx-auto p-3 max-w-[60rem] grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-4">
 
       {/* ── LEFT COLUMN ── */}
       <div className="flex flex-col gap-2.5">
@@ -739,14 +798,30 @@ export function DamageCalculator() {
             </button>
           ) : <span />}
 
-          {/* Hotkey hint — full cheat sheet opens with "/" */}
-          <button
-            onClick={() => setHotkeyModalOpen(true)}
-            className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-zinc-400"
-          >
-            <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-400">/</kbd>
-            <span className="text-zinc-400">Keyboard shortcuts</span>
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Reset */}
+            {(attacker ?? defender ?? move) && (
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-red-400"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Reset</span>
+              </button>
+            )}
+
+            {/* Hotkey hint — full cheat sheet opens with "/" */}
+            <button
+              onClick={() => setHotkeyModalOpen(true)}
+              className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-zinc-400"
+            >
+              <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-400">/</kbd>
+              <span className="text-zinc-400">Keyboard shortcuts</span>
+            </button>
+          </div>
         </div>
 
         {/* Move section — z-10 keeps dropdown above anything below */}

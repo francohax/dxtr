@@ -2,10 +2,16 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { SignInButton } from "@clerk/nextjs";
-import { api } from "~/trpc/react";
+import { api, type RouterOutputs } from "~/trpc/react";
 import { SavedCalcCard } from "./SavedCalcCard";
 
-export function SavedCalcsPanel() {
+type SavedCalc = RouterOutputs["calc"]["list"][number];
+
+interface SavedCalcsPanelProps {
+  onLoadCalc?: (calc: SavedCalc) => void;
+}
+
+export function SavedCalcsPanel({ onLoadCalc }: SavedCalcsPanelProps) {
   const { isSignedIn } = useAuth();
 
   return (
@@ -15,7 +21,7 @@ export function SavedCalcsPanel() {
       </div>
 
       {isSignedIn ? (
-        <SavedCalcsList />
+        <SavedCalcsList onLoadCalc={onLoadCalc} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           <p className="text-xs text-zinc-600">Sign in to save and recall calculations.</p>
@@ -30,7 +36,7 @@ export function SavedCalcsPanel() {
   );
 }
 
-function SavedCalcsList() {
+function SavedCalcsList({ onLoadCalc }: { onLoadCalc?: (calc: SavedCalc) => void }) {
   const { data: calcs, isLoading, refetch } = api.calc.list.useQuery();
   const deleteMutation = api.calc.delete.useMutation({
     onSuccess: () => void refetch(),
@@ -62,6 +68,7 @@ function SavedCalcsList() {
           key={calc.id}
           calc={calc}
           onDelete={id => deleteMutation.mutate({ id })}
+          onLoad={onLoadCalc}
         />
       ))}
     </div>

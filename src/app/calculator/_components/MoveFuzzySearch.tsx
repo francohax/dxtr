@@ -28,9 +28,10 @@ interface MovePickerModalProps {
   onClose:        () => void;
   attackerSprite?: string;
   attackerName?:  string;
+  attackingOnly?: boolean;
 }
 
-function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite, attackerName }: MovePickerModalProps) {
+function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite, attackerName, attackingOnly }: MovePickerModalProps) {
   const [query, setQuery] = useState("");
   const [fetching, setFetching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,10 +54,16 @@ function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite
   }, [handleKey]);
 
   const filtered = useMemo(() => {
-    if (!query) return moveNames.slice(0, 60);
-    const q = query.toLowerCase().replace(/\s/g, "-");
-    return moveNames.filter(n => n.includes(q)).slice(0, 60);
-  }, [query, moveNames]);
+    const base = query
+      ? moveNames.filter(n => n.includes(query.toLowerCase().replace(/\s/g, "-")))
+      : moveNames;
+    const sliced = base.slice(0, 60);
+    if (!attackingOnly) return sliced;
+    return sliced.filter(n => {
+      const s = moveSummaries.get(n);
+      return !s || s.category !== "status";
+    });
+  }, [query, moveNames, moveSummaries, attackingOnly]);
 
   async function handleSelect(moveName: string) {
     setFetching(true);
@@ -190,9 +197,10 @@ interface MoveFuzzySearchProps {
   attackerName?:    string;
   /** Caller-owned ref populated with a function that opens the picker modal */
   openModalRef?:    React.RefObject<(() => void) | null>;
+  attackingOnly?:   boolean;
 }
 
-export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef, isLoadingMove, attackerSprite, attackerName, openModalRef }: MoveFuzzySearchProps) {
+export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef, isLoadingMove, attackerSprite, attackerName, openModalRef, attackingOnly }: MoveFuzzySearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -216,11 +224,20 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  // Lazy prefetch so inline search can filter status moves as summaries arrive
+  const moveSummaries = useMovePrefetch(moveNames, attackingOnly ?? false);
+
   const filtered = useMemo(() => {
-    if (!query) return moveNames.slice(0, 40);
-    const q = query.toLowerCase().replace(/\s/g, "-");
-    return moveNames.filter(n => n.includes(q)).slice(0, 40);
-  }, [query, moveNames]);
+    const base = query
+      ? moveNames.filter(n => n.includes(query.toLowerCase().replace(/\s/g, "-")))
+      : moveNames;
+    const sliced = base.slice(0, 40);
+    if (!attackingOnly) return sliced;
+    return sliced.filter(n => {
+      const s = moveSummaries.get(n);
+      return !s || s.category !== "status";
+    });
+  }, [query, moveNames, moveSummaries, attackingOnly]);
 
   async function handleInlineSelect(moveName: string) {
     setOpen(false);
@@ -307,6 +324,7 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
             onClose={() => setModalOpen(false)}
             attackerSprite={attackerSprite}
             attackerName={attackerName}
+            attackingOnly={attackingOnly}
           />
         )}
       </>

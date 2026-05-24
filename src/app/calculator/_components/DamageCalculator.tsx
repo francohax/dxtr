@@ -753,6 +753,7 @@ export function DamageCalculator() {
           openModalRef={openMovePickerRef}
           attackerSprite={attacker?.sprite}
           attackerName={attacker?.name}
+          attackingOnly={true}
         />
 
         {/* Battle config — at top of column */}

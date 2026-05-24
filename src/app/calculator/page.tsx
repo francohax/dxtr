@@ -2,6 +2,8 @@ import { api, HydrateClient } from "~/trpc/server";
 import { DamageCalculator } from "./_components/DamageCalculator";
 import { SavedCalcsPanel } from "./_components/SavedCalcsPanel";
 
+export const dynamic = "force-dynamic";
+
 export default async function CalculatorPage() {
   void api.pokemon.listNames.prefetch();
   return (

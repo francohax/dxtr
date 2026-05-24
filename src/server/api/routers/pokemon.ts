@@ -255,7 +255,7 @@ export const pokemonRouter = createTRPCRouter({
       where: { name: { in: CHAMPIONS_POOL } },
       select: { name: true, sprite: true, types: true },
     });
-    const found = new Map(cached.map(p => [p.name, { name: p.name, sprite: p.sprite, types: p.types as string[] }]));
+    const found = new Map(cached.map(p => [p.name, { name: p.name, sprite: p.sprite, types: p.types }]));
 
     // Fetch any missing entries from PokeAPI and write-back to DB cache
     const missing = CHAMPIONS_POOL.filter(n => !found.has(n));

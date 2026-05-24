@@ -6,7 +6,7 @@ import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { useMovePrefetch } from "~/hooks/useMovePrefetch";
 import { useListKeyboard }  from "~/hooks/useListKeyboard";
-import { type MoveDetail, type PokemonType } from "~/lib/types";
+import { type MoveDetail } from "~/lib/types";
 
 // ─── Stat chip ────────────────────────────────────────────────────────────────
 
@@ -59,10 +59,7 @@ function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite
       : moveNames;
     const sliced = base.slice(0, 60);
     if (!attackingOnly) return sliced;
-    return sliced.filter(n => {
-      const s = moveSummaries.get(n);
-      return !s || s.category !== "status";
-    });
+    return sliced.filter(n => moveSummaries.get(n)?.category !== "status");
   }, [query, moveNames, moveSummaries, attackingOnly]);
 
   async function handleSelect(moveName: string) {
@@ -233,10 +230,7 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
       : moveNames;
     const sliced = base.slice(0, 40);
     if (!attackingOnly) return sliced;
-    return sliced.filter(n => {
-      const s = moveSummaries.get(n);
-      return !s || s.category !== "status";
-    });
+    return sliced.filter(n => moveSummaries.get(n)?.category !== "status");
   }, [query, moveNames, moveSummaries, attackingOnly]);
 
   async function handleInlineSelect(moveName: string) {
@@ -294,7 +288,7 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
 
           {/* Top row */}
           <div className="flex items-center gap-2.5 pr-14">
-            <TypeBadge type={value.type as PokemonType} size="sm" />
+            <TypeBadge type={value.type} size="sm" />
             <span className="flex-1 truncate text-sm font-semibold capitalize text-white">
               {value.name.replace(/-/g, " ")}
             </span>

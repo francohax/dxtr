@@ -46,7 +46,7 @@ const TERRAIN_TOOLTIPS: Partial<Record<Terrain, ReactNode>> = {
     <div className="flex flex-col gap-1">
       <span className="font-semibold text-yellow-300">Electric Terrain</span>
       <span>Grounded: Electric moves <span className="text-yellow-300 font-medium">×1.3</span></span>
-      <span>Grounded Pokémon <span className="text-zinc-400">can't fall asleep</span></span>
+      <span>Grounded Pokémon <span className="text-zinc-400">can&apos;t fall asleep</span></span>
       <span className="mt-0.5 text-zinc-500 text-[10px]">Set by Electric Surge / Electric Terrain.<br />5 turns (8 w/ Terrain Extender).</span>
     </div>
   ),
@@ -252,7 +252,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef, weatherRef,
             options={WEATHER_OPTIONS}
             tooltips={WEATHER_TOOLTIPS}
             selected={config.weather}
-            onSelect={v => update("weather", v as Weather)}
+            onSelect={v => update("weather", v)}
             containerRef={weatherRef}
           />
           <PillGrid
@@ -260,7 +260,7 @@ export function BattleConfigPanel({ config, onChange, levelInputRef, weatherRef,
             options={TERRAIN_OPTIONS}
             tooltips={TERRAIN_TOOLTIPS}
             selected={config.terrain}
-            onSelect={v => update("terrain", v as Terrain)}
+            onSelect={v => update("terrain", v)}
             containerRef={terrainRef}
           />
         </div>

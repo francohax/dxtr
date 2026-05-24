@@ -8,7 +8,6 @@ import { type DamageResult } from "~/lib/damage";
 import {
   type PokemonSummary,
   type MoveDetail,
-  type PokemonType,
   type BattleConfig,
   DEFAULT_BATTLE_CONFIG,
 } from "~/lib/types";
@@ -215,7 +214,7 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm font-bold capitalize tracking-tight text-white">{value.name}</p>
             <div className="flex gap-1">
-              {value.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
+              {value.types.map(t => <TypeBadge key={t} type={t} size="sm" />)}
             </div>
           </div>
           <div className="absolute inset-x-0 bottom-0 flex items-center justify-center rounded-b-2xl bg-zinc-800/0 py-1.5 opacity-0 transition group-hover:bg-zinc-800/60 group-hover:opacity-100">
@@ -328,6 +327,7 @@ export function DamageCalculator() {
 
   // Auto-calculate whenever any input changes
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
     if (!attacker || !defender || !move || !move.power) {
       setResult(null);
       return;
@@ -365,16 +365,16 @@ export function DamageCalculator() {
     if (attackerItem) attackStat  = Math.floor(attackStat  * getItemAttackMult(attackerItem,  move.category) + 0.5);
     if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category, move.type) + 0.5);
 
-    const stab = attacker.types.includes(move.type as PokemonType);
-    const te   = getTypeEffectiveness(move.type as PokemonType, defender.types as PokemonType[]);
+    const stab = attacker.types.includes(move.type);
+    const te   = getTypeEffectiveness(move.type, defender.types);
 
     const attackerDamageMult = attackerItem
-      ? getItemDamageMult(attackerItem, move.type as PokemonType, te)
+      ? getItemDamageMult(attackerItem, move.type, te)
       : 1;
 
     const dmg = calculateDamage({
       level, power: move.power, attackStat, defenseStat, stab,
-      typeEffectiveness: te, moveType: move.type as PokemonType,
+      typeEffectiveness: te, moveType: move.type,
       weather: battleConfig.weather, terrain: battleConfig.terrain,
       isCritical: battleConfig.isCritical, attackerDamageMult,
     });

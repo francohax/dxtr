@@ -9,10 +9,10 @@ import { NatureSelector } from "./NatureSelector";
 import { StatEditor } from "./StatEditor";
 import { SaveTeamModal } from "./SaveTeamModal";
 import { SavedTeamsPanel } from "./SavedTeamsPanel";
-import { type PokemonSummary, type MoveDetail, type TeamSlotConfig, type StatSet, ZERO_STATS } from "~/lib/types";
+import { type PokemonSummary, type MoveDetail, type TeamSlotConfig, ZERO_STATS } from "~/lib/types";
 import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 
-const EMPTY_SLOTS = (): (TeamSlotConfig | null)[] => Array(6).fill(null);
+const EMPTY_SLOTS = (): (TeamSlotConfig | null)[] => Array<TeamSlotConfig | null>(6).fill(null);
 
 function newSlot(position: number, pokemon: PokemonSummary): TeamSlotConfig {
   return {
@@ -152,7 +152,7 @@ export function TeamBuilder() {
     const loadedSlots = await utils.team.loadForBuilder.fetch({ id: teamId });
     const padded = [
       ...loadedSlots,
-      ...Array(6 - loadedSlots.length).fill(null),
+      ...Array<TeamSlotConfig | null>(6 - loadedSlots.length).fill(null),
     ] as (TeamSlotConfig | null)[];
     setSlots(padded);
     setActiveSearch(false);
@@ -229,8 +229,8 @@ export function TeamBuilder() {
                 evs={editingSlotData.evs}
                 ivs={editingSlotData.ivs}
                 ivsEnabled={editingSlotData.ivsEnabled}
-                onEvsChange={evs => updateSlot(editingSlot, "evs", evs as StatSet)}
-                onIvsChange={ivs => updateSlot(editingSlot, "ivs", ivs as StatSet)}
+                onEvsChange={evs => updateSlot(editingSlot, "evs", evs)}
+                onIvsChange={ivs => updateSlot(editingSlot, "ivs", ivs)}
                 onIvsToggle={enabled => updateSlot(editingSlot, "ivsEnabled", enabled)}
               />
             </div>

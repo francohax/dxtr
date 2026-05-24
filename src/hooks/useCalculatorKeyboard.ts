@@ -131,12 +131,12 @@ export function useCalculatorKeyboard(
         const spec = s.slot === "attacker" ? "spAttack" : "spDefense";
         if (e.code === "KeyA" || e.key === "ArrowUp") {
           e.preventDefault();
-          setState(prev => ({ ...prev, attribute: phys as FocusAttribute }));
+          setState(prev => ({ ...prev, attribute: phys }));
           return;
         }
         if (e.code === "KeyS" || e.key === "ArrowDown") {
           e.preventDefault();
-          setState(prev => ({ ...prev, attribute: spec as FocusAttribute }));
+          setState(prev => ({ ...prev, attribute: spec }));
           return;
         }
       }

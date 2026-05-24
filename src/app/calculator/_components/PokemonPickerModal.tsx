@@ -102,7 +102,7 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
     return pool
       .filter(s => {
         const nameMatch = !query || s.name.includes(q);
-        const typeMatch = typeFilters.length === 0 || typeFilters.every(f => (s.types as string[]).includes(f));
+        const typeMatch = typeFilters.length === 0 || typeFilters.every(f => s.types.includes(f));
         return nameMatch && typeMatch;
       })
       .slice(0, 30);
@@ -276,6 +276,7 @@ export function PokemonPickerModal({ label, current, onSelect, onClose }: Pokemo
                     </span>
                   </div>
                   <div className="flex gap-1">
+                    {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion */}
                     {pokemon.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
                   </div>
                 </div>

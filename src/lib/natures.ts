@@ -35,7 +35,7 @@ export const NATURES: Record<string, { boost: StatKey | null; reduce: StatKey | 
   quirky:  { boost: null,          reduce: null },
 };
 
-export const NATURE_NAMES = Object.keys(NATURES) as string[];
+export const NATURE_NAMES = Object.keys(NATURES);
 
 export function getNatureMultiplier(nature: string, stat: StatKey): number {
   const n = NATURES[nature];

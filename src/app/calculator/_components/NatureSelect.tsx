@@ -62,7 +62,7 @@ export function NatureSelect({ value, onChange, containerRef }: NatureSelectProp
           ref={containerRef}
           value={value}
           onChange={e => onChange(e.target.value as NatureKey)}
-          className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-white outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 capitalize"
+          className="px-4 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-white outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 capitalize"
         >
           {NATURE_KEYS.map(n => (
             <option key={n} value={n} className="capitalize">

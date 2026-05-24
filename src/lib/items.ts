@@ -1,10 +1,11 @@
 import { type PokemonType } from "~/lib/types";
 
 export type ItemEffect =
-  | { type: "attack_mult";  mult: number; category: "physical" | "special" | "any" }
-  | { type: "defense_mult"; mult: number }
-  | { type: "damage_mult";  mult: number; superEffectiveOnly?: boolean }
-  | { type: "type_boost";   poketype: PokemonType; mult: number }
+  | { type: "attack_mult";       mult: number; category: "physical" | "special" | "any" }
+  | { type: "defense_mult";      mult: number }
+  | { type: "damage_mult";       mult: number; superEffectiveOnly?: boolean }
+  | { type: "type_boost";        poketype: PokemonType; mult: number }
+  | { type: "type_resist_berry"; poketype: PokemonType; mult: 0.5 }
   | { type: "none" };
 
 export interface CompetitiveItem {
@@ -12,6 +13,7 @@ export interface CompetitiveItem {
   name: string;
   spriteUrl: string;
   effect: ItemEffect;
+  isChampionsItem?: boolean;
 }
 
 const SPRITE = (slug: string) =>
@@ -55,9 +57,14 @@ export function getItemAttackMult(item: CompetitiveItem, moveCategory: string): 
   return 1;
 }
 
-export function getItemDefenseMult(item: CompetitiveItem, moveCategory: string): number {
+export function getItemDefenseMult(
+  item: CompetitiveItem,
+  moveCategory: string,
+  moveType?: PokemonType,
+): number {
   const { effect } = item;
   if (effect.type === "defense_mult" && moveCategory === "special") return effect.mult;
+  if (effect.type === "type_resist_berry" && moveType === effect.poketype) return effect.mult;
   return 1;
 }
 

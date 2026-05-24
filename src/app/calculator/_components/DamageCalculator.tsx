@@ -356,7 +356,7 @@ export function DamageCalculator() {
 
     // pokeRound matches the game's stat-item chain rounding
     if (attackerItem) attackStat  = Math.floor(attackStat  * getItemAttackMult(attackerItem,  move.category) + 0.5);
-    if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category) + 0.5);
+    if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category, move.type) + 0.5);
 
     const stab = attacker.types.includes(move.type as PokemonType);
     const te   = getTypeEffectiveness(move.type as PokemonType, defender.types as PokemonType[]);

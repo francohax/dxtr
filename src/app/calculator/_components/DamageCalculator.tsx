@@ -9,10 +9,12 @@ import {
   type PokemonSummary,
   type MoveDetail,
   type BattleConfig,
+  type Weather,
+  type Terrain,
   DEFAULT_BATTLE_CONFIG,
 } from "~/lib/types";
 import { getNatureMult, type NatureKey } from "~/lib/natures";
-import { getItemAttackMult, getItemDefenseMult, getItemDamageMult, type CompetitiveItem } from "~/lib/items";
+import { getItemAttackMult, getItemDefenseMult, getItemDamageMult, type CompetitiveItem, COMPETITIVE_ITEMS } from "~/lib/items";
 import { DamageResultCard } from "./DamageResult";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { SkeletonBlock } from "~/app/_components/SkeletonBlock";
@@ -118,7 +120,7 @@ function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused, containerR
       className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition outline-none ${kbFocused
         ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
         : "border-zinc-700/40 bg-zinc-800/20"
-      }`}
+        }`}
     >
       <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">EVs</span>
       {stats.map(({ key, label, base }) => {
@@ -215,7 +217,7 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
             />
             {item?.spriteUrl && (
               <div className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 shadow-sm">
-                <Image src={item.spriteUrl} alt={item.name} width={16} height={16} unoptimized />
+                <Image src={item.spriteUrl} alt={item.name} width={16} height={16} />
               </div>
             )}
           </div>
@@ -318,6 +320,31 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
     setLoadingDefender(true);
     setLoadingMove(true);
 
+    // Restore extended state immediately (no async needed)
+    setAttackerItem(
+      loadRequest.attackerItemSlug
+        ? (COMPETITIVE_ITEMS.find(i => i.slug === loadRequest.attackerItemSlug) ?? null)
+        : null,
+    );
+    setDefenderItem(
+      loadRequest.defenderItemSlug
+        ? (COMPETITIVE_ITEMS.find(i => i.slug === loadRequest.defenderItemSlug) ?? null)
+        : null,
+    );
+    setAttackerNature((loadRequest.attackerNature ?? "hardy") as NatureKey);
+    setDefenderNature((loadRequest.defenderNature ?? "hardy") as NatureKey);
+    setAttackerEvs({ attack: loadRequest.attackerAtkEv ?? 0, spAttack: loadRequest.attackerSpAEv ?? 0 });
+    setDefenderEvs({ defense: loadRequest.defenderDefEv ?? 0, spDefense: loadRequest.defenderSpDEv ?? 0 });
+    setAttackerStages({ attack: loadRequest.attackerAtkStage ?? 0, spAttack: loadRequest.attackerSpAStage ?? 0 });
+    setDefenderStages({ defense: loadRequest.defenderDefStage ?? 0, spDefense: loadRequest.defenderSpDStage ?? 0 });
+    setBattleConfig({
+      level:          loadRequest.battleLevel ?? 50,
+      weather:        (loadRequest.weather ?? "none") as Weather,
+      terrain:        (loadRequest.terrain ?? "none") as Terrain,
+      isCritical:     loadRequest.isCritical ?? false,
+      attackerBurned: loadRequest.attackerBurned ?? false,
+    });
+
     void (async () => {
       const [att, def] = await Promise.all([
         utils.pokemon.search.fetch({ query: attackerName }),
@@ -337,7 +364,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
       setLoadingMove(false);
       onLoadClear?.();
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRequest]);
 
   const [attackerItem, setAttackerItem] = useState<CompetitiveItem | null>(null);
@@ -346,16 +373,16 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
   const [defenderNature, setDefenderNature] = useState<NatureKey>("hardy");
 
   const attackerNatureMults = useMemo<Record<string, number>>(() => ({
-    attack:    getNatureMult(attackerNature, "attack"),
-    spAttack:  getNatureMult(attackerNature, "spAttack"),
-    defense:   getNatureMult(attackerNature, "defense"),
+    attack: getNatureMult(attackerNature, "attack"),
+    spAttack: getNatureMult(attackerNature, "spAttack"),
+    defense: getNatureMult(attackerNature, "defense"),
     spDefense: getNatureMult(attackerNature, "spDefense"),
   }), [attackerNature]);
 
   const defenderNatureMults = useMemo<Record<string, number>>(() => ({
-    attack:    getNatureMult(defenderNature, "attack"),
-    spAttack:  getNatureMult(defenderNature, "spAttack"),
-    defense:   getNatureMult(defenderNature, "defense"),
+    attack: getNatureMult(defenderNature, "attack"),
+    spAttack: getNatureMult(defenderNature, "spAttack"),
+    defense: getNatureMult(defenderNature, "defense"),
     spDefense: getNatureMult(defenderNature, "spDefense"),
   }), [defenderNature]);
 
@@ -364,18 +391,18 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
   const attackerCardRef = useRef<HTMLDivElement>(null);
   const defenderCardRef = useRef<HTMLDivElement>(null);
   const levelInputRef = useRef<HTMLInputElement>(null);
-  const attackerItemRef   = useRef<HTMLInputElement>(null);
+  const attackerItemRef = useRef<HTMLInputElement>(null);
   const attackerNatureRef = useRef<HTMLSelectElement>(null);
-  const defenderItemRef   = useRef<HTMLInputElement>(null);
+  const defenderItemRef = useRef<HTMLInputElement>(null);
   const defenderNatureRef = useRef<HTMLSelectElement>(null);
-  const attackerEvRef     = useRef<HTMLDivElement>(null);
-  const defenderEvRef     = useRef<HTMLDivElement>(null);
-  const attackerStageRef  = useRef<HTMLDivElement>(null);
-  const defenderStageRef  = useRef<HTMLDivElement>(null);
-  const weatherRef        = useRef<HTMLDivElement>(null);
-  const terrainRef        = useRef<HTMLDivElement>(null);
-  const critRef           = useRef<HTMLButtonElement>(null);
-  const burnRef           = useRef<HTMLButtonElement>(null);
+  const attackerEvRef = useRef<HTMLDivElement>(null);
+  const defenderEvRef = useRef<HTMLDivElement>(null);
+  const attackerStageRef = useRef<HTMLDivElement>(null);
+  const defenderStageRef = useRef<HTMLDivElement>(null);
+  const weatherRef = useRef<HTMLDivElement>(null);
+  const terrainRef = useRef<HTMLDivElement>(null);
+  const critRef = useRef<HTMLButtonElement>(null);
+  const burnRef = useRef<HTMLButtonElement>(null);
 
   const attackerActiveKey = move
     ? (move.category === "physical" ? "attack" : move.category === "special" ? "spAttack" : undefined)
@@ -394,26 +421,26 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
 
     const level = battleConfig.level;
     const isPhysical = move.category === "physical";
-    const isSpecial  = move.category === "special";
+    const isSpecial = move.category === "special";
 
-    const attackKey  = isPhysical ? "attack"  : "spAttack";
+    const attackKey = isPhysical ? "attack" : "spAttack";
     const defenseKey = isPhysical ? "defense" : "spDefense";
 
     let attackStat = isPhysical
-      ? calcEffectiveStat(attacker.baseStats.attack,    attackerEvs.attack    ?? 0, level, getNatureMult(attackerNature, "attack"))
+      ? calcEffectiveStat(attacker.baseStats.attack, attackerEvs.attack ?? 0, level, getNatureMult(attackerNature, "attack"))
       : isSpecial
         ? calcEffectiveStat(attacker.baseStats.spAttack, attackerEvs.spAttack ?? 0, level, getNatureMult(attackerNature, "spAttack"))
         : 0;
 
     let defenseStat = isPhysical
-      ? calcEffectiveStat(defender.baseStats.defense,   defenderEvs.defense   ?? 0, level, getNatureMult(defenderNature, "defense"))
+      ? calcEffectiveStat(defender.baseStats.defense, defenderEvs.defense ?? 0, level, getNatureMult(defenderNature, "defense"))
       : isSpecial
         ? calcEffectiveStat(defender.baseStats.spDefense, defenderEvs.spDefense ?? 0, level, getNatureMult(defenderNature, "spDefense"))
         : 0;
 
-    const atkStageMult = getStatStageMult(attackerStages[attackKey]  ?? 0);
+    const atkStageMult = getStatStageMult(attackerStages[attackKey] ?? 0);
     const defStageMult = getStatStageMult(defenderStages[defenseKey] ?? 0);
-    attackStat  = Math.floor(attackStat  * atkStageMult);
+    attackStat = Math.floor(attackStat * atkStageMult);
     defenseStat = Math.floor(defenseStat * defStageMult);
 
     if (battleConfig.attackerBurned && isPhysical) {
@@ -421,11 +448,11 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
     }
 
     // pokeRound matches the game's stat-item chain rounding
-    if (attackerItem) attackStat  = Math.floor(attackStat  * getItemAttackMult(attackerItem,  move.category) + 0.5);
+    if (attackerItem) attackStat = Math.floor(attackStat * getItemAttackMult(attackerItem, move.category) + 0.5);
     if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category, move.type) + 0.5);
 
     const stab = attacker.types.includes(move.type);
-    const te   = getTypeEffectiveness(move.type, defender.types);
+    const te = getTypeEffectiveness(move.type, defender.types);
 
     const attackerDamageMult = attackerItem
       ? getItemDamageMult(attackerItem, move.type, te)
@@ -527,35 +554,35 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
     defenderEvs,
     attackerStages,
     defenderStages,
-    onFocusWeather:  () => weatherRef.current?.focus(),
-    onFocusTerrain:  () => terrainRef.current?.focus(),
+    onFocusWeather: () => weatherRef.current?.focus(),
+    onFocusTerrain: () => terrainRef.current?.focus(),
     onSelectWeather: (w) => setBattleConfig(prev => ({ ...prev, weather: prev.weather === w ? "none" : w })),
     onSelectTerrain: (t) => setBattleConfig(prev => ({ ...prev, terrain: prev.terrain === t ? "none" : t })),
-    onToggleCrit:    () => setBattleConfig(prev => ({ ...prev, isCritical: !prev.isCritical })),
-    onToggleBurn:    () => setBattleConfig(prev => ({ ...prev, attackerBurned: !prev.attackerBurned })),
+    onToggleCrit: () => setBattleConfig(prev => ({ ...prev, isCritical: !prev.isCritical })),
+    onToggleBurn: () => setBattleConfig(prev => ({ ...prev, attackerBurned: !prev.attackerBurned })),
   });
 
   const focusChain = useMemo<FocusChainEntry[]>(() => [
-    { id: "attacker-card",   getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "attacker-item",   getElement: () => attackerItemRef.current },
+    { id: "attacker-card", getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
+    { id: "attacker-item", getElement: () => attackerItemRef.current },
     { id: "attacker-nature", getElement: () => attackerNatureRef.current },
-    { id: "defender-card",   getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "defender-item",   getElement: () => defenderItemRef.current },
+    { id: "defender-card", getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
+    { id: "defender-item", getElement: () => defenderItemRef.current },
     { id: "defender-nature", getElement: () => defenderNatureRef.current },
-    { id: "move-area",       getElement: () => moveInputRef.current },
-    { id: "attacker-ev",     getElement: () => attackerEvRef.current },
-    { id: "defender-ev",     getElement: () => defenderEvRef.current },
-    { id: "attacker-stage",  getElement: () => attackerStageRef.current },
-    { id: "defender-stage",  getElement: () => defenderStageRef.current },
-    { id: "weather",         getElement: () => weatherRef.current },
-    { id: "terrain",         getElement: () => terrainRef.current },
-    { id: "level-input",     getElement: () => levelInputRef.current },
-    { id: "crit",            getElement: () => critRef.current },
-    { id: "burn",            getElement: () => burnRef.current },
+    { id: "move-area", getElement: () => moveInputRef.current },
+    { id: "attacker-ev", getElement: () => attackerEvRef.current },
+    { id: "defender-ev", getElement: () => defenderEvRef.current },
+    { id: "attacker-stage", getElement: () => attackerStageRef.current },
+    { id: "defender-stage", getElement: () => defenderStageRef.current },
+    { id: "weather", getElement: () => weatherRef.current },
+    { id: "terrain", getElement: () => terrainRef.current },
+    { id: "level-input", getElement: () => levelInputRef.current },
+    { id: "crit", getElement: () => critRef.current },
+    { id: "burn", getElement: () => burnRef.current },
   ], []);
 
   useFocusChain(focusChain, (id) => {
-    const atkAttr = move?.category === "physical" ? "attack"  : move?.category === "special" ? "spAttack"  : null;
+    const atkAttr = move?.category === "physical" ? "attack" : move?.category === "special" ? "spAttack" : null;
     const defAttr = move?.category === "physical" ? "defense" : move?.category === "special" ? "spDefense" : null;
 
     if (id === "attacker-card" || id === "attacker-item" || id === "attacker-nature") {
@@ -761,7 +788,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
       {/* ── RIGHT COLUMN ── */}
       <div className="flex h-full justify-end item-end flex-col gap-3.5">
 
-        <div className="flex h-full mt-1 items-start justify-between p-4">
+        <div className="flex h-full mt-1 items-start justify-end p-4">
           {/* Copy to Showdown calc — only visible when a result exists */}
           {result && attacker && defender && move ? (
             <button
@@ -778,7 +805,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                   setTimeout(() => setCopied(false), 2000);
                 });
               }}
-              className={`flex items-center gap-1.5 text-[11px] transition ${copied ? "text-green-400" : "text-zinc-600 hover:text-zinc-300"}`}
+              className={`pr-4 mt-[2px] flex items-center gap-1.5 text-[11px] transition ${copied ? "text-green-400" : "text-zinc-600 hover:text-zinc-300"}`}
             >
               {copied ? (
                 <>
@@ -792,26 +819,13 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
                   </svg>
-                  <span>Copy to Showdown calc</span>
+                  <span className="text-zinc-400">Copy Calc</span>
                 </>
               )}
             </button>
           ) : <span />}
 
-          <div className="flex items-center gap-3">
-            {/* Reset */}
-            {(attacker ?? defender ?? move) && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-red-400"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                <span>Reset</span>
-              </button>
-            )}
+          <div className="flex-col items-center gap-3">
 
             {/* Hotkey hint — full cheat sheet opens with "/" */}
             <button
@@ -821,6 +835,24 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
               <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-400">/</kbd>
               <span className="text-zinc-400">Keyboard shortcuts</span>
             </button>
+
+            <div className="h-2">&nbsp;</div>
+
+            {/* Reset */}
+            {(attacker ?? defender ?? move) && (
+              <div className="mt-1 w-full flex justify-end">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 text-[11px] text-zinc-400 transition hover:text-red-400"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <span>Reset</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -869,17 +901,35 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                   const defHp = defenderHpAtL50(defender.baseStats.hp);
                   saveMutation.mutate(
                     {
-                      attackerName: attacker.name,
-                      attackerSprite: attacker.sprite,
-                      attackerTypes: attacker.types,
-                      defenderName: defender.name,
-                      defenderSprite: defender.sprite,
-                      defenderTypes: defender.types,
-                      moveName: result.move.name,
-                      moveType: result.move.type,
-                      movePower: result.move.power ?? null,
-                      minPercent: (result.dmg.min / defHp) * 100,
-                      maxPercent: (result.dmg.max / defHp) * 100,
+                      attackerName:    attacker.name,
+                      attackerSprite:  attacker.sprite,
+                      attackerTypes:   attacker.types,
+                      defenderName:    defender.name,
+                      defenderSprite:  defender.sprite,
+                      defenderTypes:   defender.types,
+                      moveName:        result.move.name,
+                      moveType:        result.move.type,
+                      movePower:       result.move.power ?? null,
+                      minPercent:      (result.dmg.min / defHp) * 100,
+                      maxPercent:      (result.dmg.max / defHp) * 100,
+                      // Extended state
+                      attackerItemSlug:  attackerItem?.slug ?? null,
+                      defenderItemSlug:  defenderItem?.slug ?? null,
+                      attackerNature:    attackerNature,
+                      defenderNature:    defenderNature,
+                      attackerAtkEv:     attackerEvs.attack ?? 0,
+                      attackerSpAEv:     attackerEvs.spAttack ?? 0,
+                      defenderDefEv:     defenderEvs.defense ?? 0,
+                      defenderSpDEv:     defenderEvs.spDefense ?? 0,
+                      attackerAtkStage:  attackerStages.attack ?? 0,
+                      attackerSpAStage:  attackerStages.spAttack ?? 0,
+                      defenderDefStage:  defenderStages.defense ?? 0,
+                      defenderSpDStage:  defenderStages.spDefense ?? 0,
+                      battleLevel:       battleConfig.level,
+                      weather:           battleConfig.weather,
+                      terrain:           battleConfig.terrain,
+                      isCritical:        battleConfig.isCritical,
+                      attackerBurned:    battleConfig.attackerBurned,
                     },
                     {
                       onSuccess: () => {
@@ -890,11 +940,10 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                   );
                 }}
                 disabled={saveMutation.isPending}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  savedFeedback
-                    ? "bg-green-500/20 text-green-400"
-                    : "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
-                }`}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${savedFeedback
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+                  }`}
               >
                 {savedFeedback ? (
                   <>

@@ -18,7 +18,7 @@ export function CalculatorPageClient() {
           onLoadClear={() => setLoadRequest(null)}
         />
       </div>
-      <aside className="hidden w-80 shrink-0 border-l border-zinc-800/60 lg:flex lg:flex-col">
+      <aside className="hidden w-72 shrink-0 border-l border-zinc-800/60 lg:flex lg:flex-col">
         <SavedCalcsPanel onLoadCalc={setLoadRequest} />
       </aside>
     </div>

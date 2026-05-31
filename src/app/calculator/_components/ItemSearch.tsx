@@ -82,6 +82,56 @@ function effectTooltip(item: CompetitiveItem): ReactNode {
   }
 }
 
+// ─── Category helpers ──────────────────────────────────────────────────────────
+
+const CATEGORY_ORDER = ["Type Boosters", "Hold Items", "Berries", "Mega Stones", "Tickets"] as const;
+type ItemCategory = (typeof CATEGORY_ORDER)[number];
+
+function getItemCategory(item: CompetitiveItem): ItemCategory {
+  const name = item.name.toLowerCase();
+  const slug = item.slug;
+  if (name.includes("ticket") || name.includes("coupon")) return "Tickets";
+  if (slug.endsWith("ite") || slug === "charizardite-x" || slug === "charizardite-y") return "Mega Stones";
+  if (slug.endsWith("-berry")) return "Berries";
+  if (item.effect.type === "type_boost") return "Type Boosters";
+  return "Hold Items";
+}
+
+// ─── Shared item row ───────────────────────────────────────────────────────────
+
+function ItemRow({
+  item,
+  onSelect,
+}: {
+  item: CompetitiveItem;
+  onSelect: (item: CompetitiveItem) => void;
+}) {
+  return (
+    <Tooltip content={effectTooltip(item)} side="right" className="w-full">
+      <button
+        onClick={() => onSelect(item)}
+        className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition hover:bg-zinc-800/70"
+      >
+        {item.spriteUrl ? (
+          <Image src={item.spriteUrl} alt={item.name} width={16} height={16} className="shrink-0" />
+        ) : (
+          <span className="h-4 w-4 shrink-0 rounded-sm bg-zinc-800 text-[8px] leading-4 text-center text-zinc-600">?</span>
+        )}
+        <span className="flex-1 truncate text-zinc-300">{item.name}</span>
+        {item.effect.type !== "none" && (
+          <span className="shrink-0 text-[9px] text-zinc-600">
+            {item.effect.type === "type_boost" && `×${item.effect.mult}`}
+            {item.effect.type === "attack_mult" && `×${item.effect.mult} Atk`}
+            {item.effect.type === "damage_mult" && `×${item.effect.mult} dmg`}
+            {item.effect.type === "defense_mult" && `×${item.effect.mult} Def`}
+            {item.effect.type === "type_resist_berry" && `×${item.effect.mult}`}
+          </span>
+        )}
+      </button>
+    </Tooltip>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface ItemSearchProps {
@@ -93,7 +143,7 @@ interface ItemSearchProps {
 export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [championsOnly, setChampionsOnly] = useState(false);
+  const [championsOnly, setChampionsOnly] = useState(true);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,23 +155,47 @@ export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
   }, []);
 
   const pool = useMemo(
-    () => championsOnly ? COMPETITIVE_ITEMS.filter(i => i.isChampionsItem) : COMPETITIVE_ITEMS,
+    () => (championsOnly ? COMPETITIVE_ITEMS.filter(i => i.isChampionsItem) : COMPETITIVE_ITEMS),
     [championsOnly],
   );
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return pool.filter(i => i.name.toLowerCase().includes(q)).slice(0, 20);
-  }, [query, pool]);
+    const matches = pool.filter(i => i.name.toLowerCase().includes(q));
+    // When browsing Champions (no query), return all for grouping; otherwise cap for flat list
+    return championsOnly && !query ? matches : matches.slice(0, 20);
+  }, [query, pool, championsOnly]);
+
+  const grouped = useMemo(() => {
+    if (!championsOnly || query) return null;
+    const map = new Map<ItemCategory, CompetitiveItem[]>();
+    for (const item of filtered) {
+      const cat = getItemCategory(item);
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(item);
+    }
+    return CATEGORY_ORDER.filter(c => map.has(c)).map(c => ({ label: c, items: map.get(c)! }));
+  }, [filtered, championsOnly, query]);
+
+  function handleSelect(item: CompetitiveItem) {
+    onChange(item);
+    setQuery("");
+    setOpen(false);
+  }
 
   if (value) {
     return (
       <Tooltip content={effectTooltip(value)} side="bottom">
         <div className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5">
-          {value.spriteUrl && (
-            <Image src={value.spriteUrl} alt={value.name} width={18} height={18} unoptimized className="shrink-0" />
+          {value.spriteUrl ? (
+            <Image src={value.spriteUrl} alt={value.name} width={18} height={18} className="shrink-0" />
+          ) : (
+            <span className="h-4 w-4 shrink-0 rounded-sm bg-zinc-800 text-[8px] leading-4 text-center text-zinc-600">?</span>
           )}
           <span className="flex-1 truncate text-xs text-zinc-300">{value.name}</span>
+          {value.isChampionsItem && (
+            <span className="shrink-0 text-[9px] text-amber-500/70">★</span>
+          )}
           <button
             onClick={() => onChange(null)}
             className="shrink-0 text-zinc-600 transition hover:text-red-400"
@@ -147,10 +221,17 @@ export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
         className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
       />
       {open && (
-        <div className="absolute top-full z-20 mt-1 w-64 rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
-          {/* Champions toggle header */}
+        <div className="absolute top-full z-20 mt-1 w-72 rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+          {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-800/60 px-3 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Items</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Items</span>
+              {filtered.length > 0 && (
+                <span className="rounded-full bg-zinc-800 px-1.5 py-px text-[9px] tabular-nums text-zinc-500">
+                  {filtered.length}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setChampionsOnly(v => !v)}
               className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition ${
@@ -164,28 +245,34 @@ export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
             </button>
           </div>
 
-          {/* Item list */}
+          {/* Results */}
           {filtered.length > 0 ? (
-            <ul className="max-h-44 overflow-y-auto py-1">
-              {filtered.map(item => (
-                <li key={item.slug}>
-                  <Tooltip content={effectTooltip(item)} side="right" className="w-full">
-                    <button
-                      onClick={() => { onChange(item); setQuery(""); setOpen(false); }}
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-zinc-800"
-                    >
-                      {item.spriteUrl && (
-                        <Image src={item.spriteUrl} alt={item.name} width={16} height={16} unoptimized className="shrink-0" />
-                      )}
-                      <span className="text-zinc-300">{item.name}</span>
-                    </button>
-                  </Tooltip>
-                </li>
-              ))}
-            </ul>
+            <div className="max-h-60 overflow-y-auto py-1">
+              {grouped ? (
+                // Browsing mode: grouped by category
+                grouped.map(({ label, items }) => (
+                  <div key={label}>
+                    <div className="sticky top-0 flex items-center gap-2 bg-zinc-950 px-3 py-1">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">{label}</span>
+                      <span className="text-[9px] text-zinc-700">({items.length})</span>
+                    </div>
+                    {items.map(item => (
+                      <ItemRow key={item.slug} item={item} onSelect={handleSelect} />
+                    ))}
+                  </div>
+                ))
+              ) : (
+                // Search mode: flat list
+                filtered.map(item => (
+                  <ItemRow key={item.slug} item={item} onSelect={handleSelect} />
+                ))
+              )}
+            </div>
           ) : (
             <p className="px-3 py-4 text-center text-[11px] text-zinc-600">
-              {championsOnly ? "No Champions items match." : `No items matching "${query}".`}
+              {championsOnly
+                ? `No Champions items match "${query}".`
+                : `No items matching "${query}".`}
             </p>
           )}
         </div>

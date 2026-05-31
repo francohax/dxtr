@@ -17,7 +17,6 @@ export function SavedCalcsPanel({ onLoadCalc }: SavedCalcsPanelProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="shrink-0 border-b border-zinc-800/60 px-4 py-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-600">Saved Calcs</h2>
       </div>
 
       {isSignedIn ? (

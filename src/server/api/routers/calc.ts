@@ -16,14 +16,34 @@ export const calcRouter = createTRPCRouter({
         movePower:      z.number().nullable(),
         minPercent:     z.number(),
         maxPercent:     z.number(),
+        // Extended state
+        attackerItemSlug:  z.string().nullable().optional(),
+        defenderItemSlug:  z.string().nullable().optional(),
+        attackerNature:    z.string().default("hardy"),
+        defenderNature:    z.string().default("hardy"),
+        attackerAtkEv:     z.number().default(0),
+        attackerSpAEv:     z.number().default(0),
+        defenderDefEv:     z.number().default(0),
+        defenderSpDEv:     z.number().default(0),
+        attackerAtkStage:  z.number().default(0),
+        attackerSpAStage:  z.number().default(0),
+        defenderDefStage:  z.number().default(0),
+        defenderSpDStage:  z.number().default(0),
+        battleLevel:       z.number().default(50),
+        weather:           z.string().default("none"),
+        terrain:           z.string().default("none"),
+        isCritical:        z.boolean().default(false),
+        attackerBurned:    z.boolean().default(false),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.savedCalc.create({
         data: {
           ...input,
-          userId:   ctx.userId,
-          movePower: input.movePower ?? undefined,
+          userId:          ctx.userId,
+          movePower:       input.movePower ?? undefined,
+          attackerItemSlug: input.attackerItemSlug ?? undefined,
+          defenderItemSlug: input.defenderItemSlug ?? undefined,
         },
       });
     }),

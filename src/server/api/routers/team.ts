@@ -173,4 +173,66 @@ export const teamRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.team.deleteMany({ where: { id: input.id, userId: ctx.userId } });
     }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().min(1).max(60),
+        slots: z.array(SlotInput).min(1).max(6),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.team.findFirst({
+        where: { id: input.id, userId: ctx.userId },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Team not found" });
+      }
+
+      await ctx.db.teamSlot.deleteMany({ where: { teamId: input.id } });
+
+      return ctx.db.team.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          slots: {
+            create: input.slots.map(slot => ({
+              position: slot.position,
+              pokeApiId: slot.pokeApiId,
+              name: slot.name,
+              sprite: slot.sprite,
+              types: slot.types,
+              nature: slot.nature,
+              evHp: slot.evHp,
+              evAtk: slot.evAtk,
+              evDef: slot.evDef,
+              evSpAtk: slot.evSpAtk,
+              evSpDef: slot.evSpDef,
+              evSpeed: slot.evSpeed,
+              ivHp: slot.ivHp,
+              ivAtk: slot.ivAtk,
+              ivDef: slot.ivDef,
+              ivSpAtk: slot.ivSpAtk,
+              ivSpDef: slot.ivSpDef,
+              ivSpeed: slot.ivSpeed,
+              ivsEnabled: slot.ivsEnabled,
+              moves: {
+                create: slot.moves.map(move => ({
+                  position: move.position,
+                  pokeApiId: move.pokeApiId,
+                  name: move.name,
+                  type: move.type,
+                  category: move.category,
+                  power: move.power,
+                  accuracy: move.accuracy,
+                  pp: move.pp,
+                })),
+              },
+            })),
+          },
+        },
+        include: { slots: { include: { moves: true } } },
+      });
+    }),
 });

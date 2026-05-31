@@ -86,6 +86,25 @@ model SavedCalc {
   minPercent     Float
   maxPercent     Float
 
+  // Extended state — items, natures, EVs, stages, battle config
+  attackerItemSlug  String?
+  defenderItemSlug  String?
+  attackerNature    String  @default("hardy")
+  defenderNature    String  @default("hardy")
+  attackerAtkEv     Int     @default(0)
+  attackerSpAEv     Int     @default(0)
+  defenderDefEv     Int     @default(0)
+  defenderSpDEv     Int     @default(0)
+  attackerAtkStage  Int     @default(0)
+  attackerSpAStage  Int     @default(0)
+  defenderDefStage  Int     @default(0)
+  defenderSpDStage  Int     @default(0)
+  battleLevel       Int     @default(50)
+  weather           String  @default("none")
+  terrain           String  @default("none")
+  isCritical        Boolean @default(false)
+  attackerBurned    Boolean @default(false)
+
   @@index([userId, createdAt])
 }
 

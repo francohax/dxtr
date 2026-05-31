@@ -3,6 +3,12 @@ export type PokemonType =
   | "fighting" | "poison" | "ground" | "flying" | "psychic" | "bug"
   | "rock" | "ghost" | "dragon" | "dark" | "steel" | "fairy";
 
+export const ALL_POKEMON_TYPES: PokemonType[] = [
+  "normal", "fire", "water", "electric", "grass", "ice",
+  "fighting", "poison", "ground", "flying", "psychic", "bug",
+  "rock", "ghost", "dragon", "dark", "steel", "fairy",
+];
+
 export type MoveCategory = "physical" | "special" | "status";
 
 export interface PokemonSummary {

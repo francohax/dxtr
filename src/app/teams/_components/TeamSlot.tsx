@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { TypeBadge } from "~/app/_components/TypeBadge";
-import { type PokemonSummary, type MoveDetail, type PokemonType } from "~/lib/types";
+import { type PokemonSummary, type MoveDetail } from "~/lib/types";
 
 interface TeamSlotProps {
   position: number;
@@ -49,7 +49,7 @@ export function TeamSlot({ position, pokemon, moves, nature, isActive, onRemove,
         <div className="flex flex-col gap-1">
           <span className="text-sm font-bold capitalize">{pokemon.name}</span>
           <div className="flex flex-wrap gap-1">
-            {pokemon.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
+            {pokemon.types.map(t => <TypeBadge key={t} type={t} size="sm" />)}
           </div>
           <span className="text-xs capitalize text-zinc-500">{nature}</span>
         </div>

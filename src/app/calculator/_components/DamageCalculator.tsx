@@ -8,10 +8,13 @@ import { type DamageResult } from "~/lib/damage";
 import {
   type PokemonSummary,
   type MoveDetail,
-  type PokemonType,
   type BattleConfig,
+  type Weather,
+  type Terrain,
   DEFAULT_BATTLE_CONFIG,
 } from "~/lib/types";
+import { getNatureMult, type NatureKey } from "~/lib/natures";
+import { getItemAttackMult, getItemDefenseMult, getItemDamageMult, type CompetitiveItem, COMPETITIVE_ITEMS } from "~/lib/items";
 import { DamageResultCard } from "./DamageResult";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { SkeletonBlock } from "~/app/_components/SkeletonBlock";
@@ -19,12 +22,76 @@ import { PokemonPickerModal } from "./PokemonPickerModal";
 import { MoveFuzzySearch } from "./MoveFuzzySearch";
 import { BattleConfigPanel } from "./BattleConfigPanel";
 import { StatStagePanel } from "./StatStagePanel";
+import { ItemSearch } from "./ItemSearch";
+import { NatureSelect } from "./NatureSelect";
 import { useKeyboardShortcuts } from "~/hooks/useKeyboardShortcuts";
 import { useCalculatorKeyboard } from "~/hooks/useCalculatorKeyboard";
 import { useFocusChain, type FocusChainEntry } from "~/hooks/useFocusChain";
 import { HotkeyModal } from "./HotkeyModal";
+import { useAuth } from "@clerk/nextjs";
+import { defenderHpAtL50 } from "~/lib/ohko";
+import { type RouterOutputs } from "~/trpc/react";
+
+type SavedCalc = RouterOutputs["calc"]["list"][number];
+
+interface DamageCalculatorProps {
+  loadRequest?: SavedCalc | null;
+  onLoadClear?: () => void;
+}
 
 const STORAGE_KEY = "dxtr-random-battle";
+
+// ─── Showdown damage calc import format (two-set paste) ──────────────────────
+
+const SHOWDOWN_STAT: Record<string, string> = {
+  attack: "Atk", spAttack: "SpA", defense: "Def", spDefense: "SpD", hp: "HP", speed: "Spe",
+};
+
+function buildShowdownImport(
+  attacker: PokemonSummary,
+  defender: PokemonSummary,
+  move: MoveDetail,
+  attackerEvs: Record<string, number>,
+  defenderEvs: Record<string, number>,
+  attackerNature: NatureKey,
+  defenderNature: NatureKey,
+  attackerItem: CompetitiveItem | null,
+  defenderItem: CompetitiveItem | null,
+  level: number,
+): string {
+  const titleCase = (s: string) =>
+    s.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join("-");
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function evLine(evs: Record<string, number>): string | null {
+    const parts = Object.entries(evs)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => `${v} ${SHOWDOWN_STAT[k] ?? k}`);
+    return parts.length > 0 ? `EVs: ${parts.join(" / ")}` : null;
+  }
+
+  function buildSet(
+    pokemon: PokemonSummary,
+    item: CompetitiveItem | null,
+    nature: NatureKey,
+    evs: Record<string, number>,
+    moveName?: string,
+  ): string {
+    const lines: string[] = [];
+    lines.push(item ? `${titleCase(pokemon.name)} @ ${item.name}` : titleCase(pokemon.name));
+    lines.push(`Level: ${level}`);
+    const ev = evLine(evs);
+    if (ev) lines.push(ev);
+    lines.push(`${capitalize(nature)} Nature`);
+    if (moveName) lines.push(`- ${titleCase(moveName).replace(/-/g, " ")}`);
+    return lines.join("\n");
+  }
+
+  const atkSet = buildSet(attacker, attackerItem, attackerNature, attackerEvs, move.name);
+  const defSet = buildSet(defender, defenderItem, defenderNature, defenderEvs);
+  return `${atkSet}\n\n${defSet}`;
+}
 
 // ─── EV slider panel ─────────────────────────────────────────────────────────
 
@@ -41,18 +108,25 @@ interface EvPanelProps {
   activeKey?: string;
   onChange: (key: string, value: number) => void;
   kbFocused?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  natureMults?: Record<string, number>;
 }
 
-function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused }: EvPanelProps) {
+function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused, containerRef, natureMults }: EvPanelProps) {
   return (
-    <div className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition ${kbFocused
-      ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
-      : "border-zinc-700/40 bg-zinc-800/20"
-      }`}>
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">EVs</span>
+    <div
+      ref={containerRef}
+      tabIndex={containerRef ? 0 : undefined}
+      className={`flex flex-col gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition outline-none ${kbFocused
+        ? "border-violet-500/60 bg-zinc-800/30 ring-1 ring-violet-500/20"
+        : "border-zinc-700/40 bg-zinc-800/20"
+        }`}
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">EVs</span>
       {stats.map(({ key, label, base }) => {
         const ev = evs[key] ?? 0;
-        const effective = calcEffectiveStat(base, ev, level);
+        const natureMult = natureMults?.[key] ?? 1;
+        const effective = calcEffectiveStat(base, ev, level, natureMult);
         const isActive = key === activeKey;
         return (
           <div key={key} className={`flex flex-col gap-1 transition-opacity ${isActive ? "opacity-100" : "opacity-40"}`}>
@@ -61,7 +135,7 @@ function EvPanel({ stats, evs, level, activeKey, onChange, kbFocused }: EvPanelP
                 {label}
               </span>
               <div className="flex items-center gap-2.5">
-                <span className="text-[10px] tabular-nums text-zinc-600">{ev} EV</span>
+                <span className="text-[10px] tabular-nums text-zinc-400">{ev} EV</span>
                 <span className={`min-w-[2rem] text-right text-[11px] font-bold tabular-nums ${isActive ? "text-violet-400" : "text-zinc-500"}`}>
                   {effective}
                 </span>
@@ -92,15 +166,16 @@ interface PokemonSlotCardProps {
   onOpenPicker: () => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   kbHighlighted?: boolean;
+  item?: CompetitiveItem | null;
 }
 
-function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, kbHighlighted }: PokemonSlotCardProps) {
+function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, kbHighlighted, item }: PokemonSlotCardProps) {
   const typeColor = value?.types[0] ? `var(--color-type-${value.types[0]})` : undefined;
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2" ref={containerRef}>
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">{label}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">{label}</span>
         <div className="relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-zinc-700/40 bg-zinc-800/20 p-4">
           <div className="shimmer absolute inset-0" />
           <SkeletonBlock className="h-20 w-20 rounded-xl" />
@@ -114,8 +189,11 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
   }
 
   return (
-    <div className="flex flex-col gap-2" ref={containerRef}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">{label}</span>
+    <div
+      className={`flex flex-col gap-1 rounded-xl transition`}
+      ref={containerRef}
+    >
+      <span className="pl-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">{label}</span>
       {value ? (
         <div
           role="button"
@@ -123,11 +201,10 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
           onClick={onOpenPicker}
           onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpenPicker(); }}
           style={typeColor ? { "--type-glow": typeColor } as React.CSSProperties : undefined}
-          className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border bg-zinc-800/30 p-4 backdrop-blur-sm transition-all duration-200 ${
-            kbHighlighted
-              ? "border-[var(--type-glow,theme(colors.zinc.600))] shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
-              : "border-zinc-700/50 hover:border-[var(--type-glow,theme(colors.zinc.600))] hover:shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
-          }`}
+          className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border bg-zinc-800/30 p-4 backdrop-blur-sm transition-all duration-200 ${kbHighlighted
+            ? "border-[var(--type-glow,theme(colors.zinc.600))] shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
+            : "border-zinc-700/50 hover:border-[var(--type-glow,theme(colors.zinc.600))] hover:shadow-[0_0_24px_color-mix(in_srgb,var(--type-glow,transparent)_25%,transparent)]"
+            }`}
         >
           <div className="relative flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-800/80">
             <Image
@@ -138,27 +215,26 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
               unoptimized
               className={`drop-shadow-lg transition-transform duration-200 ${kbHighlighted ? "scale-105" : "group-hover:scale-105"}`}
             />
+            {item?.spriteUrl && (
+              <div className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 shadow-sm">
+                <Image src={item.spriteUrl} alt={item.name} width={16} height={16} />
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm font-bold capitalize tracking-tight text-white">{value.name}</p>
             <div className="flex gap-1">
-              {value.types.map(t => <TypeBadge key={t} type={t as PokemonType} size="sm" />)}
+              {value.types.map(t => <TypeBadge key={t} type={t} size="sm" />)}
             </div>
           </div>
-          <div className={`absolute inset-x-0 bottom-0 flex items-center justify-center rounded-b-2xl py-1.5 transition ${
-            kbHighlighted ? "bg-zinc-800/60 opacity-100" : "bg-zinc-800/0 opacity-0 group-hover:bg-zinc-800/60 group-hover:opacity-100"
-          }`}>
+          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center rounded-b-2xl bg-zinc-800/0 py-1.5 opacity-0 transition group-hover:bg-zinc-800/60 group-hover:opacity-100">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Change</span>
           </div>
         </div>
       ) : (
         <button
           onClick={onOpenPicker}
-          className={`flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed py-5 backdrop-blur-sm transition-all duration-200 ${
-            kbHighlighted
-              ? "border-violet-500/60 bg-violet-900/10 shadow-[0_0_16px_rgb(124_58_237/0.12)]"
-              : "border-zinc-700/60 bg-zinc-800/20 hover:border-violet-500/60 hover:bg-violet-900/10 hover:shadow-[0_0_16px_rgb(124_58_237/0.12)]"
-          }`}
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-700/60 bg-zinc-800/20 py-5 backdrop-blur-sm transition-all duration-200 hover:border-violet-500/60 hover:bg-violet-900/10 hover:shadow-[0_0_16px_rgb(124_58_237/0.12)]"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-zinc-700 text-zinc-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -175,8 +251,9 @@ function PokemonSlotCard({ label, value, isLoading, onOpenPicker, containerRef, 
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
+const ZERO_STAGES = { attack: 0, spAttack: 0, defense: 0, spDefense: 0 };
 
-export function DamageCalculator() {
+export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorProps = {}) {
   const [attacker, setAttacker] = useState<PokemonSummary | null>(null);
   const [defender, setDefender] = useState<PokemonSummary | null>(null);
   const [move, setMove] = useState<MoveDetail | null>(null);
@@ -196,6 +273,7 @@ export function DamageCalculator() {
   const [attackerModalOpen, setAttackerModalOpen] = useState(false);
   const [defenderModalOpen, setDefenderModalOpen] = useState(false);
   const [hotkeyModalOpen, setHotkeyModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [randomEnabled, setRandomEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -203,17 +281,128 @@ export function DamageCalculator() {
     return stored === null ? true : stored === "true";
   });
 
+  const { isSignedIn } = useAuth();
   const { data: allNames = [], isLoading: namesLoading } = api.pokemon.listNames.useQuery(
     undefined,
     { staleTime: Infinity },
   );
   const utils = api.useUtils();
+  const saveMutation = api.calc.save.useMutation({
+    onSuccess: () => void utils.calc.list.invalidate(),
+  });
+  const [savedFeedback, setSavedFeedback] = useState(false);
+
+  function handleReset() {
+    setAttacker(null);
+    setDefender(null);
+    setMove(null);
+    setResult(null);
+    setAttackerItem(null);
+    setDefenderItem(null);
+    setAttackerNature("hardy");
+    setDefenderNature("hardy");
+    setAttackerEvs({ attack: 0, spAttack: 0 });
+    setDefenderEvs({ defense: 0, spDefense: 0 });
+    setAttackerStages({ attack: 0, spAttack: 0 });
+    setDefenderStages({ defense: 0, spDefense: 0 });
+    setBattleConfig(DEFAULT_BATTLE_CONFIG);
+  }
+
+  useEffect(() => {
+    if (!loadRequest) return;
+    const { attackerName, defenderName, moveName } = loadRequest;
+
+    setMove(null);
+    setAttacker(null);
+    setDefender(null);
+    setResult(null);
+    setLoadingAttacker(true);
+    setLoadingDefender(true);
+    setLoadingMove(true);
+
+    // Restore extended state immediately (no async needed)
+    setAttackerItem(
+      loadRequest.attackerItemSlug
+        ? (COMPETITIVE_ITEMS.find(i => i.slug === loadRequest.attackerItemSlug) ?? null)
+        : null,
+    );
+    setDefenderItem(
+      loadRequest.defenderItemSlug
+        ? (COMPETITIVE_ITEMS.find(i => i.slug === loadRequest.defenderItemSlug) ?? null)
+        : null,
+    );
+    setAttackerNature((loadRequest.attackerNature ?? "hardy") as NatureKey);
+    setDefenderNature((loadRequest.defenderNature ?? "hardy") as NatureKey);
+    setAttackerEvs({ attack: loadRequest.attackerAtkEv ?? 0, spAttack: loadRequest.attackerSpAEv ?? 0 });
+    setDefenderEvs({ defense: loadRequest.defenderDefEv ?? 0, spDefense: loadRequest.defenderSpDEv ?? 0 });
+    setAttackerStages({ attack: loadRequest.attackerAtkStage ?? 0, spAttack: loadRequest.attackerSpAStage ?? 0 });
+    setDefenderStages({ defense: loadRequest.defenderDefStage ?? 0, spDefense: loadRequest.defenderSpDStage ?? 0 });
+    setBattleConfig({
+      level:          loadRequest.battleLevel ?? 50,
+      weather:        (loadRequest.weather ?? "none") as Weather,
+      terrain:        (loadRequest.terrain ?? "none") as Terrain,
+      isCritical:     loadRequest.isCritical ?? false,
+      attackerBurned: loadRequest.attackerBurned ?? false,
+    });
+
+    void (async () => {
+      const [att, def] = await Promise.all([
+        utils.pokemon.search.fetch({ query: attackerName }),
+        utils.pokemon.search.fetch({ query: defenderName }),
+      ]);
+      setAttacker(att);
+      setDefender(def);
+      setLoadingAttacker(false);
+      setLoadingDefender(false);
+
+      try {
+        const moveData = await utils.pokemon.getMove.fetch({ moveName });
+        setMove(moveData);
+      } catch {
+        // move may no longer exist
+      }
+      setLoadingMove(false);
+      onLoadClear?.();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadRequest]);
+
+  const [attackerItem, setAttackerItem] = useState<CompetitiveItem | null>(null);
+  const [defenderItem, setDefenderItem] = useState<CompetitiveItem | null>(null);
+  const [attackerNature, setAttackerNature] = useState<NatureKey>("hardy");
+  const [defenderNature, setDefenderNature] = useState<NatureKey>("hardy");
+
+  const attackerNatureMults = useMemo<Record<string, number>>(() => ({
+    attack: getNatureMult(attackerNature, "attack"),
+    spAttack: getNatureMult(attackerNature, "spAttack"),
+    defense: getNatureMult(attackerNature, "defense"),
+    spDefense: getNatureMult(attackerNature, "spDefense"),
+  }), [attackerNature]);
+
+  const defenderNatureMults = useMemo<Record<string, number>>(() => ({
+    attack: getNatureMult(defenderNature, "attack"),
+    spAttack: getNatureMult(defenderNature, "spAttack"),
+    defense: getNatureMult(defenderNature, "defense"),
+    spDefense: getNatureMult(defenderNature, "spDefense"),
+  }), [defenderNature]);
+
   const moveInputRef = useRef<HTMLInputElement>(null);
   const openMovePickerRef = useRef<(() => void) | null>(null);
   const attackerCardRef = useRef<HTMLDivElement>(null);
   const defenderCardRef = useRef<HTMLDivElement>(null);
-  const moveAreaRef = useRef<HTMLDivElement>(null);
   const levelInputRef = useRef<HTMLInputElement>(null);
+  const attackerItemRef = useRef<HTMLInputElement>(null);
+  const attackerNatureRef = useRef<HTMLSelectElement>(null);
+  const defenderItemRef = useRef<HTMLInputElement>(null);
+  const defenderNatureRef = useRef<HTMLSelectElement>(null);
+  const attackerEvRef = useRef<HTMLDivElement>(null);
+  const defenderEvRef = useRef<HTMLDivElement>(null);
+  const attackerStageRef = useRef<HTMLDivElement>(null);
+  const defenderStageRef = useRef<HTMLDivElement>(null);
+  const weatherRef = useRef<HTMLDivElement>(null);
+  const terrainRef = useRef<HTMLDivElement>(null);
+  const critRef = useRef<HTMLButtonElement>(null);
+  const burnRef = useRef<HTMLButtonElement>(null);
 
   const attackerActiveKey = move
     ? (move.category === "physical" ? "attack" : move.category === "special" ? "spAttack" : undefined)
@@ -224,6 +413,7 @@ export function DamageCalculator() {
 
   // Auto-calculate whenever any input changes
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
     if (!attacker || !defender || !move || !move.power) {
       setResult(null);
       return;
@@ -237,15 +427,15 @@ export function DamageCalculator() {
     const defenseKey = isPhysical ? "defense" : "spDefense";
 
     let attackStat = isPhysical
-      ? calcEffectiveStat(attacker.baseStats.attack, attackerEvs.attack ?? 0, level)
+      ? calcEffectiveStat(attacker.baseStats.attack, attackerEvs.attack ?? 0, level, getNatureMult(attackerNature, "attack"))
       : isSpecial
-        ? calcEffectiveStat(attacker.baseStats.spAttack, attackerEvs.spAttack ?? 0, level)
+        ? calcEffectiveStat(attacker.baseStats.spAttack, attackerEvs.spAttack ?? 0, level, getNatureMult(attackerNature, "spAttack"))
         : 0;
 
     let defenseStat = isPhysical
-      ? calcEffectiveStat(defender.baseStats.defense, defenderEvs.defense ?? 0, level)
+      ? calcEffectiveStat(defender.baseStats.defense, defenderEvs.defense ?? 0, level, getNatureMult(defenderNature, "defense"))
       : isSpecial
-        ? calcEffectiveStat(defender.baseStats.spDefense, defenderEvs.spDefense ?? 0, level)
+        ? calcEffectiveStat(defender.baseStats.spDefense, defenderEvs.spDefense ?? 0, level, getNatureMult(defenderNature, "spDefense"))
         : 0;
 
     const atkStageMult = getStatStageMult(attackerStages[attackKey] ?? 0);
@@ -257,26 +447,29 @@ export function DamageCalculator() {
       attackStat = Math.floor(attackStat / 2);
     }
 
-    const stab = attacker.types.includes(move.type as PokemonType);
-    const te = getTypeEffectiveness(move.type as PokemonType, defender.types as PokemonType[]);
+    // pokeRound matches the game's stat-item chain rounding
+    if (attackerItem) attackStat = Math.floor(attackStat * getItemAttackMult(attackerItem, move.category) + 0.5);
+    if (defenderItem) defenseStat = Math.floor(defenseStat * getItemDefenseMult(defenderItem, move.category, move.type) + 0.5);
+
+    const stab = attacker.types.includes(move.type);
+    const te = getTypeEffectiveness(move.type, defender.types);
+
+    const attackerDamageMult = attackerItem
+      ? getItemDamageMult(attackerItem, move.type, te)
+      : 1;
+
     const dmg = calculateDamage({
-      level,
-      power: move.power,
-      attackStat,
-      defenseStat,
-      stab,
-      typeEffectiveness: te,
-      moveType: move.type as PokemonType,
-      weather: battleConfig.weather,
-      terrain: battleConfig.terrain,
-      isCritical: battleConfig.isCritical,
+      level, power: move.power, attackStat, defenseStat, stab,
+      typeEffectiveness: te, moveType: move.type,
+      weather: battleConfig.weather, terrain: battleConfig.terrain,
+      isCritical: battleConfig.isCritical, attackerDamageMult,
     });
 
     const combinedStage = atkStageMult * defStageMult;
     if (combinedStage !== 1) dmg.stageMult = combinedStage;
 
     setResult({ dmg, move });
-  }, [attacker, defender, move, battleConfig, attackerEvs, defenderEvs, attackerStages, defenderStages]);
+  }, [attacker, defender, move, battleConfig, attackerEvs, defenderEvs, attackerStages, defenderStages, attackerItem, defenderItem, attackerNature, defenderNature]);
 
   const randomizeBattle = useCallback(async () => {
     if (allNames.length === 0) return;
@@ -361,29 +554,52 @@ export function DamageCalculator() {
     defenderEvs,
     attackerStages,
     defenderStages,
-    moveCategory: move?.category,
+    onFocusWeather: () => weatherRef.current?.focus(),
+    onFocusTerrain: () => terrainRef.current?.focus(),
+    onSelectWeather: (w) => setBattleConfig(prev => ({ ...prev, weather: prev.weather === w ? "none" : w })),
+    onSelectTerrain: (t) => setBattleConfig(prev => ({ ...prev, terrain: prev.terrain === t ? "none" : t })),
+    onToggleCrit: () => setBattleConfig(prev => ({ ...prev, isCritical: !prev.isCritical })),
+    onToggleBurn: () => setBattleConfig(prev => ({ ...prev, attackerBurned: !prev.attackerBurned })),
   });
-
-  // When 1/2 keys set the slot, also move DOM focus to the card element
-  useEffect(() => {
-    if (kbState.slot === "attacker") {
-      attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button')?.focus();
-    } else if (kbState.slot === "defender") {
-      defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button')?.focus();
-    }
-  }, [kbState.slot]);
 
   const focusChain = useMemo<FocusChainEntry[]>(() => [
     { id: "attacker-card", getElement: () => attackerCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
+    { id: "attacker-item", getElement: () => attackerItemRef.current },
+    { id: "attacker-nature", getElement: () => attackerNatureRef.current },
     { id: "defender-card", getElement: () => defenderCardRef.current?.querySelector<HTMLElement>('[role="button"], button') ?? null },
-    { id: "move-area",     getElement: () => moveAreaRef.current?.querySelector<HTMLElement>('[role="button"][tabindex="0"], input') ?? null },
-    { id: "level-input",   getElement: () => levelInputRef.current },
+    { id: "defender-item", getElement: () => defenderItemRef.current },
+    { id: "defender-nature", getElement: () => defenderNatureRef.current },
+    { id: "move-area", getElement: () => moveInputRef.current },
+    { id: "attacker-ev", getElement: () => attackerEvRef.current },
+    { id: "defender-ev", getElement: () => defenderEvRef.current },
+    { id: "attacker-stage", getElement: () => attackerStageRef.current },
+    { id: "defender-stage", getElement: () => defenderStageRef.current },
+    { id: "weather", getElement: () => weatherRef.current },
+    { id: "terrain", getElement: () => terrainRef.current },
+    { id: "level-input", getElement: () => levelInputRef.current },
+    { id: "crit", getElement: () => critRef.current },
+    { id: "burn", getElement: () => burnRef.current },
   ], []);
 
   useFocusChain(focusChain, (id) => {
-    if (id === "attacker-card") setKbState({ slot: "attacker", panel: null, attribute: null });
-    else if (id === "defender-card") setKbState({ slot: "defender", panel: null, attribute: null });
-    else setKbState({ slot: null, panel: null, attribute: null });
+    const atkAttr = move?.category === "physical" ? "attack" : move?.category === "special" ? "spAttack" : null;
+    const defAttr = move?.category === "physical" ? "defense" : move?.category === "special" ? "spDefense" : null;
+
+    if (id === "attacker-card" || id === "attacker-item" || id === "attacker-nature") {
+      setKbState({ slot: "attacker", panel: null, attribute: null });
+    } else if (id === "defender-card" || id === "defender-item" || id === "defender-nature") {
+      setKbState({ slot: "defender", panel: null, attribute: null });
+    } else if (id === "attacker-ev") {
+      setKbState({ slot: "attacker", panel: "ev", attribute: atkAttr });
+    } else if (id === "defender-ev") {
+      setKbState({ slot: "defender", panel: "ev", attribute: defAttr });
+    } else if (id === "attacker-stage") {
+      setKbState({ slot: "attacker", panel: "stage", attribute: atkAttr });
+    } else if (id === "defender-stage") {
+      setKbState({ slot: "defender", panel: "stage", attribute: defAttr });
+    } else {
+      setKbState({ slot: null, panel: null, attribute: null });
+    }
   });
 
   // Keyboard override: if user selected an attribute via keyboard, use it instead of move-derived key
@@ -419,10 +635,10 @@ export function DamageCalculator() {
   const showPokemonPanels = !!(attacker ?? loadingAttacker);
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-6">
+    <div className="mx-auto p-3 max-w-[60rem] grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.4fr)] lg:items-start lg:gap-4">
 
       {/* ── LEFT COLUMN ── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2.5">
 
         {/* Random battle toggle */}
         <div className={`relative flex items-center justify-between rounded-xl border border-zinc-700/50 bg-zinc-800/30 px-4 py-3 backdrop-blur-sm transition-opacity ${namesLoading ? "opacity-60" : "opacity-100"}`}>
@@ -461,34 +677,44 @@ export function DamageCalculator() {
         </div>
 
         {/* Pokemon pickers */}
-        <div className="relative grid grid-cols-2 gap-3">
-          <PokemonSlotCard
-            label="Attacker"
-            value={attacker}
-            isLoading={loadingAttacker}
-            onOpenPicker={() => { setAttackerModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
-            containerRef={attackerCardRef}
-            kbHighlighted={kbState.slot === "attacker"}
-          />
-          <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+        <div className="relative grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2">
+            <PokemonSlotCard
+              label="Attacker"
+              value={attacker}
+              isLoading={loadingAttacker}
+              onOpenPicker={() => { setAttackerModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
+              containerRef={attackerCardRef}
+              kbHighlighted={kbState.slot === "attacker"}
+              item={attackerItem}
+            />
+            <ItemSearch value={attackerItem} onChange={setAttackerItem} containerRef={attackerItemRef} />
+            <NatureSelect value={attackerNature} onChange={setAttackerNature} containerRef={attackerNatureRef} />
+          </div>
+          <div className="pointer-events-none absolute top-[4.5rem] left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-xs font-black tracking-tight text-zinc-500 shadow-lg">
               vs
             </div>
           </div>
-          <PokemonSlotCard
-            label="Defender"
-            value={defender}
-            isLoading={loadingDefender}
-            onOpenPicker={() => { setDefenderModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
-            containerRef={defenderCardRef}
-            kbHighlighted={kbState.slot === "defender"}
-          />
+          <div className="flex flex-col gap-2">
+            <PokemonSlotCard
+              label="Defender"
+              value={defender}
+              isLoading={loadingDefender}
+              onOpenPicker={() => { setDefenderModalOpen(true); setKbState({ slot: null, panel: null, attribute: null }); }}
+              containerRef={defenderCardRef}
+              kbHighlighted={kbState.slot === "defender"}
+              item={defenderItem}
+            />
+            <ItemSearch value={defenderItem} onChange={setDefenderItem} containerRef={defenderItemRef} />
+            <NatureSelect value={defenderNature} onChange={setDefenderNature} containerRef={defenderNatureRef} />
+          </div>
         </div>
 
         {/* EV panels + Stat stage panels */}
         {showPokemonPanels && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1.5">
               {attacker && !loadingAttacker ? (
                 <>
                   <EvPanel
@@ -498,6 +724,8 @@ export function DamageCalculator() {
                     activeKey={effectiveAttackerKey}
                     onChange={(key, val) => setAttackerEvs(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "attacker" && kbState.panel === "ev"}
+                    containerRef={attackerEvRef}
+                    natureMults={attackerNatureMults}
                   />
                   <StatStagePanel
                     stats={attackerStageStats}
@@ -505,6 +733,7 @@ export function DamageCalculator() {
                     activeKey={effectiveAttackerKey}
                     onChange={(key, val) => setAttackerStages(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "attacker" && kbState.panel === "stage"}
+                    containerRef={attackerStageRef}
                   />
                 </>
               ) : (
@@ -518,7 +747,7 @@ export function DamageCalculator() {
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {defender && !loadingDefender ? (
                 <>
                   <EvPanel
@@ -528,6 +757,8 @@ export function DamageCalculator() {
                     activeKey={effectiveDefenderKey}
                     onChange={(key, val) => setDefenderEvs(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "defender" && kbState.panel === "ev"}
+                    containerRef={defenderEvRef}
+                    natureMults={defenderNatureMults}
                   />
                   <StatStagePanel
                     stats={defenderStageStats}
@@ -535,6 +766,7 @@ export function DamageCalculator() {
                     activeKey={effectiveDefenderKey}
                     onChange={(key, val) => setDefenderStages(prev => ({ ...prev, [key]: val }))}
                     kbFocused={kbState.slot === "defender" && kbState.panel === "stage"}
+                    containerRef={defenderStageRef}
                   />
                 </>
               ) : (
@@ -554,39 +786,99 @@ export function DamageCalculator() {
       </div>
 
       {/* ── RIGHT COLUMN ── */}
-      <div className="flex h-full justify-end item-end flex-col gap-4">
+      <div className="flex h-full justify-end item-end flex-col gap-3.5">
 
-        <div className="h-full p-4 text-end">
-          {/* Hotkey hint — full cheat sheet opens with "/" */}
-          <div className="flex items-start justify-end gap-1.5 text-[11px] text-zinc-700">
-            <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">/</kbd>
-            <span>Keyboard shortcuts</span>
+        <div className="flex h-full mt-1 items-start justify-end p-4">
+          {/* Copy to Showdown calc — only visible when a result exists */}
+          {result && attacker && defender && move ? (
+            <button
+              onClick={() => {
+                const text = buildShowdownImport(
+                  attacker, defender, move,
+                  attackerEvs, defenderEvs,
+                  attackerNature, defenderNature,
+                  attackerItem, defenderItem,
+                  battleConfig.level,
+                );
+                void navigator.clipboard.writeText(text).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+              className={`pr-4 mt-[2px] flex items-center gap-1.5 text-[11px] transition ${copied ? "text-green-400" : "text-zinc-600 hover:text-zinc-300"}`}
+            >
+              {copied ? (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  </svg>
+                  <span className="text-zinc-400">Copy Calc</span>
+                </>
+              )}
+            </button>
+          ) : <span />}
+
+          <div className="flex-col items-center gap-3">
+
+            {/* Hotkey hint — full cheat sheet opens with "/" */}
+            <button
+              onClick={() => setHotkeyModalOpen(true)}
+              className="flex items-center gap-1.5 text-[11px] text-zinc-700 transition hover:text-zinc-400"
+            >
+              <kbd className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-400">/</kbd>
+              <span className="text-zinc-400">Keyboard shortcuts</span>
+            </button>
+
+            <div className="h-2">&nbsp;</div>
+
+            {/* Reset */}
+            {(attacker ?? defender ?? move) && (
+              <div className="mt-1 w-full flex justify-end">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 text-[11px] text-zinc-400 transition hover:text-red-400"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <span>Reset</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Move section — z-10 keeps dropdown above anything below */}
-        <div className="glass-card relative z-10 flex flex-col gap-2 p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Move</span>
-          <div ref={moveAreaRef}>
-            <MoveFuzzySearch
-              moveNames={attacker?.moveNames ?? []}
-              value={move}
-              isLoadingMove={loadingMove}
-              onSelect={m => setMove(m)}
-              onClear={() => setMove(null)}
-              inputRef={moveInputRef}
-              openModalRef={openMovePickerRef}
-              attackerSprite={attacker?.sprite}
-              attackerName={attacker?.name}
-            />
-          </div>
-        </div>
+        <MoveFuzzySearch
+          moveNames={attacker?.moveNames ?? []}
+          value={move}
+          isLoadingMove={loadingMove}
+          onSelect={m => setMove(m)}
+          onClear={() => setMove(null)}
+          inputRef={moveInputRef}
+          openModalRef={openMovePickerRef}
+          attackerSprite={attacker?.sprite}
+          attackerName={attacker?.name}
+          attackingOnly={true}
+        />
 
         {/* Battle config — at top of column */}
         <BattleConfigPanel
           config={battleConfig}
           onChange={setBattleConfig}
           levelInputRef={levelInputRef}
+          weatherRef={weatherRef}
+          terrainRef={terrainRef}
+          critRef={critRef}
+          burnRef={burnRef}
         />
 
       </div>
@@ -602,6 +894,77 @@ export function DamageCalculator() {
             defenderName={defender.name}
             defenderBaseHp={defender.baseStats.hp}
           />
+          {isSignedIn && (
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={() => {
+                  const defHp = defenderHpAtL50(defender.baseStats.hp);
+                  saveMutation.mutate(
+                    {
+                      attackerName:    attacker.name,
+                      attackerSprite:  attacker.sprite,
+                      attackerTypes:   attacker.types,
+                      defenderName:    defender.name,
+                      defenderSprite:  defender.sprite,
+                      defenderTypes:   defender.types,
+                      moveName:        result.move.name,
+                      moveType:        result.move.type,
+                      movePower:       result.move.power ?? null,
+                      minPercent:      (result.dmg.min / defHp) * 100,
+                      maxPercent:      (result.dmg.max / defHp) * 100,
+                      // Extended state
+                      attackerItemSlug:  attackerItem?.slug ?? null,
+                      defenderItemSlug:  defenderItem?.slug ?? null,
+                      attackerNature:    attackerNature,
+                      defenderNature:    defenderNature,
+                      attackerAtkEv:     attackerEvs.attack ?? 0,
+                      attackerSpAEv:     attackerEvs.spAttack ?? 0,
+                      defenderDefEv:     defenderEvs.defense ?? 0,
+                      defenderSpDEv:     defenderEvs.spDefense ?? 0,
+                      attackerAtkStage:  attackerStages.attack ?? 0,
+                      attackerSpAStage:  attackerStages.spAttack ?? 0,
+                      defenderDefStage:  defenderStages.defense ?? 0,
+                      defenderSpDStage:  defenderStages.spDefense ?? 0,
+                      battleLevel:       battleConfig.level,
+                      weather:           battleConfig.weather,
+                      terrain:           battleConfig.terrain,
+                      isCritical:        battleConfig.isCritical,
+                      attackerBurned:    battleConfig.attackerBurned,
+                    },
+                    {
+                      onSuccess: () => {
+                        setSavedFeedback(true);
+                        setTimeout(() => setSavedFeedback(false), 2000);
+                      },
+                    },
+                  );
+                }}
+                disabled={saveMutation.isPending}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${savedFeedback
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+                  }`}
+              >
+                {savedFeedback ? (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Saved
+                  </>
+                ) : saveMutation.isPending ? (
+                  "Saving…"
+                ) : (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    Save calc
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -610,11 +973,11 @@ export function DamageCalculator() {
         <PokemonPickerModal
           label="Attacker"
           current={attacker}
-          onSelect={(p, evs, stages) => {
+          onSelect={p => {
             setAttacker(p);
             setMove(null);
-            setAttackerEvs(evs);
-            setAttackerStages(stages);
+            setAttackerEvs({ attack: 0, spAttack: 0 });
+            setAttackerStages({ ...ZERO_STAGES });
             setAttackerModalOpen(false);
           }}
           onClose={() => setAttackerModalOpen(false)}
@@ -624,10 +987,10 @@ export function DamageCalculator() {
         <PokemonPickerModal
           label="Defender"
           current={defender}
-          onSelect={(p, evs, stages) => {
+          onSelect={p => {
             setDefender(p);
-            setDefenderEvs(evs);
-            setDefenderStages(stages);
+            setDefenderEvs({ defense: 0, spDefense: 0 });
+            setDefenderStages({ ...ZERO_STAGES });
             setDefenderModalOpen(false);
           }}
           onClose={() => setDefenderModalOpen(false)}

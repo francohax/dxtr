@@ -30,7 +30,7 @@ export function TypeBadge({ type, size = "md" }: TypeBadgeProps) {
   const colour = TYPE_COLOURS[type];
   const padding = size === "sm" ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-sm";
   return (
-    <span className={`${colour} ${padding} inline-block rounded-full font-semibold capitalize tracking-wide`}>
+    <span className={`${colour} ${padding} inline-block rounded-full font-semibold capitalize tracking-wide antialiased ring-1 ring-inset ring-white/20 shadow-sm shadow-black/30`}>
       {type}
     </span>
   );

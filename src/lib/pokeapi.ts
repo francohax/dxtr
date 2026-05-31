@@ -52,12 +52,12 @@ export async function fetchPokemon(nameOrId: string | number): Promise<PokemonSu
       "",
     types: raw.types.map(t => t.type.name as PokemonType),
     baseStats: {
-      hp: stats["hp"] ?? 0,
-      attack: stats["attack"] ?? 0,
-      defense: stats["defense"] ?? 0,
+      hp: stats.hp ?? 0,
+      attack: stats.attack ?? 0,
+      defense: stats.defense ?? 0,
       spAttack: stats["special-attack"] ?? 0,
       spDefense: stats["special-defense"] ?? 0,
-      speed: stats["speed"] ?? 0,
+      speed: stats.speed ?? 0,
     },
     moveNames: raw.moves.map(m => m.move.name),
   };

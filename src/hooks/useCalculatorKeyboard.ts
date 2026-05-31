@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { type Weather, type Terrain } from "~/lib/types";
 
 export type FocusSlot      = "attacker" | "defender" | null;
 export type FocusPanel     = "ev" | "stage" | null;
@@ -22,7 +23,17 @@ export interface UseCalculatorKeyboardOptions {
   attackerStages: Record<string, number>;
   defenderStages: Record<string, number>;
   moveCategory?:  "physical" | "special" | "status";
+  // Battle config shortcuts
+  onFocusWeather?:   () => void;
+  onFocusTerrain?:   () => void;
+  onSelectWeather?:  (weather: Weather) => void;
+  onSelectTerrain?:  (terrain: Terrain) => void;
+  onToggleCrit?:     () => void;
+  onToggleBurn?:     () => void;
 }
+
+const WEATHER_ORDER: Weather[] = ["sun", "rain", "sandstorm", "hail"];
+const TERRAIN_ORDER: Terrain[] = ["electric", "grassy", "psychic", "misty"];
 
 function isInputFocused(): boolean {
   const el = document.activeElement;
@@ -54,6 +65,7 @@ export function useCalculatorKeyboard(
   stateRef.current = state;
   const optsRef = useRef(options);
   optsRef.current = options;
+  const awaitingBattleRef = useRef<"weather" | "terrain" | null>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -63,12 +75,36 @@ export function useCalculatorKeyboard(
 
       // Escape always clears state and blurs
       if (e.key === "Escape") {
+        awaitingBattleRef.current = null;
         setState(EMPTY);
         (document.activeElement as HTMLElement | null)?.blur();
         return;
       }
 
+      // Awaiting weather/terrain 1–4 selection — takes priority over digit-slot shortcuts
+      const awaiting = awaitingBattleRef.current;
+      if (awaiting) {
+        const idx = parseInt(e.key) - 1;
+        if (idx >= 0 && idx <= 3 && !inInput) {
+          e.preventDefault();
+          awaitingBattleRef.current = null;
+          if (awaiting === "weather") {
+            opts.onSelectWeather?.(WEATHER_ORDER[idx]!);
+          } else {
+            opts.onSelectTerrain?.(TERRAIN_ORDER[idx]!);
+          }
+          return;
+        }
+        awaitingBattleRef.current = null; // any other key cancels
+      }
+
       if (inInput) return;
+
+      // Battle config shortcuts (w/t/c/v — global, no slot required)
+      if (e.key === "w") { e.preventDefault(); awaitingBattleRef.current = "weather"; opts.onFocusWeather?.(); return; }
+      if (e.key === "t") { e.preventDefault(); awaitingBattleRef.current = "terrain"; opts.onFocusTerrain?.(); return; }
+      if (e.key === "c") { e.preventDefault(); opts.onToggleCrit?.(); return; }
+      if (e.key === "v") { e.preventDefault(); opts.onToggleBurn?.(); return; }
 
       // Slot selection
       if (e.code === "Digit1") { setState({ slot: "attacker", panel: null, attribute: null }); return; }
@@ -95,12 +131,12 @@ export function useCalculatorKeyboard(
         const spec = s.slot === "attacker" ? "spAttack" : "spDefense";
         if (e.code === "KeyA" || e.key === "ArrowUp") {
           e.preventDefault();
-          setState(prev => ({ ...prev, attribute: phys as FocusAttribute }));
+          setState(prev => ({ ...prev, attribute: phys }));
           return;
         }
         if (e.code === "KeyS" || e.key === "ArrowDown") {
           e.preventDefault();
-          setState(prev => ({ ...prev, attribute: spec as FocusAttribute }));
+          setState(prev => ({ ...prev, attribute: spec }));
           return;
         }
       }

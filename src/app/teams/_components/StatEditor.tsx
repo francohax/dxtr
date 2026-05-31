@@ -18,7 +18,7 @@ interface StatEditorProps {
 }
 
 export function StatEditor({ evs, ivs, ivsEnabled, onEvsChange, onIvsChange, onIvsToggle }: StatEditorProps) {
-  const totalEvs = Object.values(evs).reduce((a, b) => a + b, 0);
+  const totalEvs = (Object.values(evs) as number[]).reduce((a, b) => a + b, 0);
 
   function setEv(stat: keyof StatSet, raw: string) {
     const val = Math.min(252, Math.max(0, parseInt(raw) || 0));

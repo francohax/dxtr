@@ -1,5 +1,12 @@
 export type StatKey = "hp" | "attack" | "defense" | "spAttack" | "spDefense" | "speed";
 
+export type NatureKey =
+  | "hardy" | "lonely" | "brave" | "adamant" | "naughty"
+  | "bold"  | "docile" | "relaxed" | "impish" | "lax"
+  | "timid" | "hasty"  | "serious" | "jolly"  | "naive"
+  | "modest" | "mild"  | "quiet"   | "bashful" | "rash"
+  | "calm"  | "gentle" | "sassy"   | "careful" | "quirky";
+
 export const NATURES: Record<string, { boost: StatKey | null; reduce: StatKey | null }> = {
   hardy:   { boost: null,          reduce: null },
   lonely:  { boost: "attack",      reduce: "defense" },
@@ -28,7 +35,7 @@ export const NATURES: Record<string, { boost: StatKey | null; reduce: StatKey | 
   quirky:  { boost: null,          reduce: null },
 };
 
-export const NATURE_NAMES = Object.keys(NATURES) as string[];
+export const NATURE_NAMES = Object.keys(NATURES);
 
 export function getNatureMultiplier(nature: string, stat: StatKey): number {
   const n = NATURES[nature];
@@ -37,6 +44,57 @@ export function getNatureMultiplier(nature: string, stat: StatKey): number {
   if (n.reduce === stat) return 0.9;
   return 1.0;
 }
+
+// ─── Plan API ─────────────────────────────────────────────────────────────────
+
+// [boosted stat, lowered stat] — null = neutral
+const NATURE_EFFECTS: Record<NatureKey, [StatKey | null, StatKey | null]> = {
+  hardy:   [null,        null],
+  lonely:  ["attack",   "defense"],
+  brave:   ["attack",   "speed"],
+  adamant: ["attack",   "spAttack"],
+  naughty: ["attack",   "spDefense"],
+  bold:    ["defense",  "attack"],
+  docile:  [null,        null],
+  relaxed: ["defense",  "speed"],
+  impish:  ["defense",  "spAttack"],
+  lax:     ["defense",  "spDefense"],
+  timid:   ["speed",    "attack"],
+  hasty:   ["speed",    "defense"],
+  serious: [null,        null],
+  jolly:   ["speed",    "spAttack"],
+  naive:   ["speed",    "spDefense"],
+  modest:  ["spAttack", "attack"],
+  mild:    ["spAttack", "defense"],
+  quiet:   ["spAttack", "speed"],
+  bashful: [null,        null],
+  rash:    ["spAttack", "spDefense"],
+  calm:    ["spDefense", "attack"],
+  gentle:  ["spDefense", "defense"],
+  sassy:   ["spDefense", "speed"],
+  careful: ["spDefense", "spAttack"],
+  quirky:  [null,        null],
+};
+
+export function getNatureMult(nature: NatureKey, stat: StatKey): number {
+  const [boosted, lowered] = NATURE_EFFECTS[nature];
+  if (boosted === stat) return 1.1;
+  if (lowered === stat)  return 0.9;
+  return 1.0;
+}
+
+export function getNatureModifiedStats(nature: NatureKey): { boosted: StatKey | null; lowered: StatKey | null } {
+  const [boosted, lowered] = NATURE_EFFECTS[nature];
+  return { boosted, lowered };
+}
+
+export const NATURE_KEYS: NatureKey[] = [
+  "hardy", "lonely", "brave", "adamant", "naughty",
+  "bold",  "docile", "relaxed", "impish", "lax",
+  "timid", "hasty",  "serious", "jolly",  "naive",
+  "modest", "mild",  "quiet",   "bashful", "rash",
+  "calm",  "gentle", "sassy",   "careful", "quirky",
+];
 
 export function calcStat(opts: {
   base: number;

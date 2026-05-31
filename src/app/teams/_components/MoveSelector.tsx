@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
-import { type MoveDetail, type PokemonType } from "~/lib/types";
+import { type MoveDetail } from "~/lib/types";
 
 interface MoveSelectorProps {
   moveNames: string[];
@@ -71,7 +71,7 @@ function MoveRow({ moveName, isSelected, isExpanded, canSelect, onToggle, onExpa
         <button onClick={onExpand} className="flex-1 text-left text-sm capitalize">
           {moveName.replace(/-/g, " ")}
         </button>
-        {data && <TypeBadge type={data.type as PokemonType} size="sm" />}
+        {data && <TypeBadge type={data.type} size="sm" />}
         <button
           disabled={!canSelect && !isSelected}
           onClick={() => { if (data) onToggle(data); else onExpand(); }}

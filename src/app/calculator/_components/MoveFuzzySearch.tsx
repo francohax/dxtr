@@ -6,7 +6,7 @@ import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { useMovePrefetch } from "~/hooks/useMovePrefetch";
 import { useListKeyboard }  from "~/hooks/useListKeyboard";
-import { type MoveDetail, type PokemonType } from "~/lib/types";
+import { type MoveDetail } from "~/lib/types";
 
 // ─── Stat chip ────────────────────────────────────────────────────────────────
 
@@ -28,9 +28,10 @@ interface MovePickerModalProps {
   onClose:        () => void;
   attackerSprite?: string;
   attackerName?:  string;
+  attackingOnly?: boolean;
 }
 
-function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite, attackerName }: MovePickerModalProps) {
+function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite, attackerName, attackingOnly }: MovePickerModalProps) {
   const [query, setQuery] = useState("");
   const [fetching, setFetching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,10 +54,13 @@ function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite
   }, [handleKey]);
 
   const filtered = useMemo(() => {
-    if (!query) return moveNames.slice(0, 60);
-    const q = query.toLowerCase().replace(/\s/g, "-");
-    return moveNames.filter(n => n.includes(q)).slice(0, 60);
-  }, [query, moveNames]);
+    const base = query
+      ? moveNames.filter(n => n.includes(query.toLowerCase().replace(/\s/g, "-")))
+      : moveNames;
+    const sliced = base.slice(0, 60);
+    if (!attackingOnly) return sliced;
+    return sliced.filter(n => moveSummaries.get(n)?.category !== "status");
+  }, [query, moveNames, moveSummaries, attackingOnly]);
 
   async function handleSelect(moveName: string) {
     setFetching(true);
@@ -190,9 +194,10 @@ interface MoveFuzzySearchProps {
   attackerName?:    string;
   /** Caller-owned ref populated with a function that opens the picker modal */
   openModalRef?:    React.RefObject<(() => void) | null>;
+  attackingOnly?:   boolean;
 }
 
-export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef, isLoadingMove, attackerSprite, attackerName, openModalRef }: MoveFuzzySearchProps) {
+export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef, isLoadingMove, attackerSprite, attackerName, openModalRef, attackingOnly }: MoveFuzzySearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -216,11 +221,17 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  // Lazy prefetch so inline search can filter status moves as summaries arrive
+  const moveSummaries = useMovePrefetch(moveNames, attackingOnly ?? false);
+
   const filtered = useMemo(() => {
-    if (!query) return moveNames.slice(0, 40);
-    const q = query.toLowerCase().replace(/\s/g, "-");
-    return moveNames.filter(n => n.includes(q)).slice(0, 40);
-  }, [query, moveNames]);
+    const base = query
+      ? moveNames.filter(n => n.includes(query.toLowerCase().replace(/\s/g, "-")))
+      : moveNames;
+    const sliced = base.slice(0, 40);
+    if (!attackingOnly) return sliced;
+    return sliced.filter(n => moveSummaries.get(n)?.category !== "status");
+  }, [query, moveNames, moveSummaries, attackingOnly]);
 
   async function handleInlineSelect(moveName: string) {
     setOpen(false);
@@ -264,7 +275,8 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
           tabIndex={0}
           onClick={() => setModalOpen(true)}
           onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setModalOpen(true); }}
-          className="group relative cursor-pointer rounded-xl border border-zinc-800 bg-zinc-900 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/40"
+          style={{ "--type-glow": `var(--color-type-${value.type})` } as React.CSSProperties}
+          className="group relative cursor-pointer rounded-xl border border-zinc-800 bg-zinc-900 p-3 shadow-[0_0_14px_color-mix(in_srgb,var(--type-glow)_20%,transparent)] transition hover:border-zinc-600 hover:bg-zinc-800/40 hover:shadow-[0_0_22px_color-mix(in_srgb,var(--type-glow)_35%,transparent)]"
         >
           {/* Edit indicator — slides in from top-right on hover */}
           <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 opacity-0 transition-all duration-150 group-hover:opacity-100">
@@ -276,7 +288,7 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
 
           {/* Top row */}
           <div className="flex items-center gap-2.5 pr-14">
-            <TypeBadge type={value.type as PokemonType} size="sm" />
+            <TypeBadge type={value.type} size="sm" />
             <span className="flex-1 truncate text-sm font-semibold capitalize text-white">
               {value.name.replace(/-/g, " ")}
             </span>
@@ -306,6 +318,7 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
             onClose={() => setModalOpen(false)}
             attackerSprite={attackerSprite}
             attackerName={attackerName}
+            attackingOnly={attackingOnly}
           />
         )}
       </>

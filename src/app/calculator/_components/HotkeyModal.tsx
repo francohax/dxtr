@@ -10,7 +10,7 @@ const SECTIONS = [
     rows: [
       { keys: ["1", "2"],            desc: "Focus Attacker / Defender slot" },
       { keys: ["Enter"],             desc: "Open Pokémon picker for focused slot" },
-      { keys: ["Tab"],               desc: "Cycle: Attacker → Defender → Move → Level" },
+      { keys: ["Tab"],               desc: "16-stop cycle: cards → items → natures → move → EVs → stages → weather → terrain → level → crit → burn" },
       { keys: ["K"],                 desc: "Open move picker" },
       { keys: ["Esc"],               desc: "Clear keyboard focus / close modal" },
     ],
@@ -24,6 +24,17 @@ const SECTIONS = [
       { keys: ["s", "↓"],           desc: "Highlight Special stat (Sp. Atk / Sp. Def)" },
       { keys: ["→", "+"],           desc: "Increase EV (+4) or Stage (+1)" },
       { keys: ["←", "−"],           desc: "Decrease EV (−4) or Stage (−1)" },
+    ],
+  },
+  {
+    title: "Weather & Terrain",
+    rows: [
+      { keys: ["w"],                 desc: "Focus Weather grid, then press 1–4 to set (same key clears)" },
+      { keys: ["t"],                 desc: "Focus Terrain grid, then press 1–4 to set (same key clears)" },
+      { keys: ["c"],                 desc: "Toggle Critical Hit" },
+      { keys: ["v"],                 desc: "Toggle Burn (attacker)" },
+      { keys: ["↑", "↓", "←", "→"], desc: "Navigate focused weather / terrain grid" },
+      { keys: ["Enter", "Space"],    desc: "Toggle highlighted option" },
     ],
   },
   {
@@ -80,7 +91,7 @@ export function HotkeyModal({ onClose }: HotkeyModalProps) {
       />
 
       {/* Panel */}
-      <div className="animate-fade-in relative w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
+      <div className="animate-fade-in relative w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800/60 px-5 py-4">
@@ -100,7 +111,7 @@ export function HotkeyModal({ onClose }: HotkeyModalProps) {
         </div>
 
         {/* Content */}
-        <div className="grid grid-cols-2 gap-px bg-zinc-800/40 p-px">
+        <div className="grid grid-cols-2 gap-px bg-zinc-800/40 p-px lg:grid-cols-3">
           {SECTIONS.map(section => (
             <div key={section.title} className="flex flex-col gap-3 bg-zinc-900 p-4">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">

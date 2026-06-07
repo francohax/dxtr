@@ -16,6 +16,7 @@ import {
 import { getNatureMult, type NatureKey } from "~/lib/natures";
 import { getItemAttackMult, getItemDefenseMult, getItemDamageMult, type CompetitiveItem, COMPETITIVE_ITEMS } from "~/lib/items";
 import { DamageResultCard } from "./DamageResult";
+import { Button } from "~/app/_components/Button";
 import { TypeBadge } from "~/app/_components/TypeBadge";
 import { SkeletonBlock } from "~/app/_components/SkeletonBlock";
 import { PokemonPickerModal } from "./PokemonPickerModal";
@@ -392,9 +393,9 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
   const defenderCardRef = useRef<HTMLDivElement>(null);
   const levelInputRef = useRef<HTMLInputElement>(null);
   const attackerItemRef = useRef<HTMLInputElement>(null);
-  const attackerNatureRef = useRef<HTMLSelectElement>(null);
+  const attackerNatureRef = useRef<HTMLButtonElement>(null);
   const defenderItemRef = useRef<HTMLInputElement>(null);
-  const defenderNatureRef = useRef<HTMLSelectElement>(null);
+  const defenderNatureRef = useRef<HTMLButtonElement>(null);
   const attackerEvRef = useRef<HTMLDivElement>(null);
   const defenderEvRef = useRef<HTMLDivElement>(null);
   const attackerStageRef = useRef<HTMLDivElement>(null);
@@ -689,7 +690,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
               item={attackerItem}
             />
             <ItemSearch value={attackerItem} onChange={setAttackerItem} containerRef={attackerItemRef} />
-            <NatureSelect value={attackerNature} onChange={setAttackerNature} containerRef={attackerNatureRef} />
+            <NatureSelect value={attackerNature} onChange={setAttackerNature} buttonRef={attackerNatureRef} />
           </div>
           <div className="pointer-events-none absolute top-[4.5rem] left-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-xs font-black tracking-tight text-zinc-500 shadow-lg">
@@ -707,7 +708,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
               item={defenderItem}
             />
             <ItemSearch value={defenderItem} onChange={setDefenderItem} containerRef={defenderItemRef} />
-            <NatureSelect value={defenderNature} onChange={setDefenderNature} containerRef={defenderNatureRef} />
+            <NatureSelect value={defenderNature} onChange={setDefenderNature} buttonRef={defenderNatureRef} />
           </div>
         </div>
 
@@ -896,7 +897,9 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
           />
           {isSignedIn && (
             <div className="mt-2 flex justify-end">
-              <button
+              <Button
+                variant={savedFeedback ? "secondary" : "primary"}
+                size="sm"
                 onClick={() => {
                   const defHp = defenderHpAtL50(defender.baseStats.hp);
                   saveMutation.mutate(
@@ -912,7 +915,6 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                       movePower:       result.move.power ?? null,
                       minPercent:      (result.dmg.min / defHp) * 100,
                       maxPercent:      (result.dmg.max / defHp) * 100,
-                      // Extended state
                       attackerItemSlug:  attackerItem?.slug ?? null,
                       defenderItemSlug:  defenderItem?.slug ?? null,
                       attackerNature:    attackerNature,
@@ -940,10 +942,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                   );
                 }}
                 disabled={saveMutation.isPending}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${savedFeedback
-                  ? "bg-green-500/20 text-green-400"
-                  : "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
-                  }`}
+                className={savedFeedback ? "text-green-400 border-green-800/40" : ""}
               >
                 {savedFeedback ? (
                   <>
@@ -962,7 +961,7 @@ export function DamageCalculator({ loadRequest, onLoadClear }: DamageCalculatorP
                     Save calc
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           )}
         </div>

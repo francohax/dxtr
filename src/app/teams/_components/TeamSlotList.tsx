@@ -14,7 +14,7 @@ export function TeamSlotList({ slots, activeIndex, onSelectSlot, onRemoveSlot }:
   return (
     <div className="flex w-72 shrink-0 flex-col gap-2">
       <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-        Team Slots
+        Party
       </p>
       {slots.map((slot, i) => (
         <TeamSlotCard

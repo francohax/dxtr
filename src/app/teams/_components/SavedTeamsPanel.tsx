@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { api } from "~/trpc/react";
 import { TypeBadge } from "~/app/_components/TypeBadge";
+import { Button } from "~/app/_components/Button";
 import { type PokemonType } from "~/lib/types";
 
 interface SavedTeamsPanelProps {
@@ -33,7 +34,7 @@ export function SavedTeamsPanel({ onLoad }: SavedTeamsPanelProps) {
         return (
           <div
             key={team.id}
-            className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 transition hover:border-zinc-700"
+            className="panel-card p-4 transition-all duration-200 hover:border-violet-900/60 hover:shadow-lg hover:shadow-violet-950/30"
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -43,24 +44,26 @@ export function SavedTeamsPanel({ onLoad }: SavedTeamsPanelProps) {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={async () => {
                     setLoadingId(team.id);
                     await onLoad(team.id);
                     setLoadingId(null);
                   }}
                   disabled={loadingId === team.id}
-                  className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
                 >
                   {loadingId === team.id ? "Loading…" : "Load"}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => deleteTeam.mutate({ id: team.id })}
                   disabled={deleteTeam.isPending}
-                  className="rounded-lg px-2 py-1.5 text-xs text-zinc-600 transition hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
             <div className="grid grid-cols-6 gap-2">

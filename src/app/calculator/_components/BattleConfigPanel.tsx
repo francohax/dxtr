@@ -2,7 +2,7 @@
 
 import React, { useState, type ReactNode } from "react";
 import { type BattleConfig, type Weather, type Terrain } from "~/lib/types";
-import { Tooltip } from "./Tooltip";
+import { Tooltip } from "~/app/_components/Tooltip";
 
 // ─── Tooltip content ──────────────────────────────────────────────────────────
 

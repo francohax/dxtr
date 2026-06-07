@@ -60,3 +60,5 @@ yarn-error.log*
 # os
 .DS_Store
 ehthumbs.db
+/.claude
+/docs

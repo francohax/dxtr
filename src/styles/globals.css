@@ -38,6 +38,66 @@
 }
 }
 
+@layer components {
+  /* Consistent dark glass panel */
+  .panel-card {
+    border-radius: .6rem;
+    border: 1px solid rgb(63 63 70 / 0.6);
+    background-color: rgb(24 24 27 / 0.85);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Consistent section heading label */
+  .section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(113 113 122);
+  }
+
+  /* EV range slider track */
+  .ev-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 9999px;
+    outline: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .ev-slider:hover { opacity: 0.95; }
+
+  /* EV range slider thumb — webkit */
+  .ev-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    border: 2px solid var(--slider-color, #8b5cf6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .ev-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--slider-color, #8b5cf6) 30%, transparent);
+  }
+
+  /* EV range slider thumb — firefox */
+  .ev-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    border: 2px solid var(--slider-color, #8b5cf6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+}
+
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.2s ease-out forwards;

@@ -248,6 +248,16 @@ export const pokemonRouter = createTRPCRouter({
       }
     }),
 
+  getPokemonByMove: publicProcedure
+    .input(z.object({ moveName: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      return ctx.db.cachedPokemon.findMany({
+        where: { moveNames: { has: input.moveName } },
+        select: { id: true, name: true, sprite: true, types: true },
+        orderBy: { id: "asc" },
+      });
+    }),
+
   // Returns the full Pokémon Champions roster with sprite + types.
   // Checks DB cache first; fetches from PokeAPI for any missing and writes them back.
   getVgcTopPicks: publicProcedure.query(async ({ ctx }) => {

@@ -57,26 +57,26 @@ export function TeamCoveragePanel({ slots }: TeamCoveragePanelProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-      <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 pb-2">
+      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
         Team Coverage
       </p>
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="flex-col">
         {/* Offensive coverage */}
-        <div>
-          <p className="mb-2 text-xs font-medium text-zinc-400">
+        <div className="mb-4">
+          <p className="text-xs font-medium text-zinc-600">
             Offensive — Super-effective vs.
           </p>
           {offCoverage.superEffective.length === 0 ? (
-            <p className="text-xs text-zinc-600">No super-effective coverage yet.</p>
+            <p className="text-xs text-zinc-400">No super-effective coverage yet.</p>
           ) : (
             <div className="flex flex-wrap gap-1">
               {offCoverage.superEffective.map(t => <TypeBadge key={t} type={t} />)}
             </div>
           )}
           {offCoverage.notVeryEffective.length > 0 && (
-            <div className="mt-2">
-              <p className="mb-1 text-xs text-zinc-600">Not covered (resisted by all):</p>
+            <div className="">
+              <p className="mb-1 text-xs text-zinc-400">Not covered (resisted by all):</p>
               <div className="flex flex-wrap gap-1">
                 {offCoverage.notVeryEffective.map(t => (
                   <TypeBadge key={t} type={t} />
@@ -88,13 +88,13 @@ export function TeamCoveragePanel({ slots }: TeamCoveragePanelProps) {
 
         {/* Defensive weaknesses */}
         <div>
-          <p className="mb-2 text-xs font-medium text-zinc-400">
-            Defensive — Weaknesses
+          <p className="mt-2 mb-1 text-xs font-medium text-zinc-400">
+            Weaknesses
           </p>
           {topWeaknesses.length === 0 ? (
             <p className="text-xs text-zinc-600">No shared weaknesses.</p>
           ) : (
-            <div className="space-y-1.5">
+            <div className="flex flex-wrap gap-1 items-center justify-between space-y-1.5">
               {topWeaknesses.map(({ type, weakCount }) => (
                 <div key={type} className="flex items-center gap-2">
                   <TypeBadge type={type} />
@@ -114,13 +114,13 @@ export function TeamCoveragePanel({ slots }: TeamCoveragePanelProps) {
 
         {/* Defensive resistances / immunities */}
         <div>
-          <p className="mb-2 text-xs font-medium text-zinc-400">
-            Defensive — Resistances
+          <p className="mt-2 mb-1 text-xs font-medium text-zinc-400">
+            Resistances
           </p>
           {topResistances.length === 0 ? (
             <p className="text-xs text-zinc-600">No resistances yet.</p>
           ) : (
-            <div className="space-y-1.5">
+            <div className="flex flex-wrap gap-1 justify-between items-center space-y-1.5">
               {topResistances.map(({ type, resistCount, immuneCount }) => (
                 <div key={type} className="flex items-center gap-2">
                   <TypeBadge type={type} />

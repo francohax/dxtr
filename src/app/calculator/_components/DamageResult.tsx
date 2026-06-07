@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { type DamageResult } from "~/lib/damage";
 import { calcOhkoOdds, defenderHpAtL50 } from "~/lib/ohko";
-import { Tooltip } from "./Tooltip";
+import { Tooltip } from "~/app/_components/Tooltip";
 
 // ─── Modifier pill tooltips ────────────────────────────────────────────────────
 

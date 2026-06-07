@@ -16,7 +16,7 @@ export function TeamSlotCard({ slot, slotIndex, isActive, onSelect, onRemove }: 
   return (
     <button
       onClick={onSelect}
-      className={`w-full rounded-xl border p-3 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+      className={`w-full rounded-r-xl border border-l-0 p-3 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
         isActive
           ? "border-violet-500 bg-violet-950/40 shadow-sm shadow-violet-900/30"
           : "border-zinc-800 bg-zinc-900 hover:border-zinc-600 hover:bg-zinc-800/60"

@@ -9,6 +9,7 @@
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
+    "db:seed-champions": "tsx scripts/seed-champions-cache.ts",
     "db:seed-pokemon": "tsx scripts/seed-pokemon-cache.ts",
     "db:studio": "prisma studio",
     "db:update-pokemon": "tsx scripts/seed-pokemon-cache.ts",

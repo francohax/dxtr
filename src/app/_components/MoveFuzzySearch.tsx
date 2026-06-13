@@ -56,7 +56,9 @@ function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite
     const base = query
       ? moveNames.filter(n => n.includes(query.toLowerCase().replace(/\s/g, "-")))
       : moveNames;
-    const sliced = base.slice(0, 60);
+
+    // const sliced = base.slice(0, 60);
+    const sliced = base;
     if (!attackingOnly) return sliced;
     return sliced.filter(n => moveSummaries.get(n)?.category !== "status");
   }, [query, moveNames, moveSummaries, attackingOnly]);
@@ -81,7 +83,7 @@ function MovePickerModal({ moveNames, onSelect, onClear, onClose, attackerSprite
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]">
       <div
-        className="absolute inset-0 bg-zinc-950/75 backdrop-blur-sm"
+        className="rounded-xl absolute inset-0 bg-zinc-950/75 backdrop-blur-sm"
         onClick={onClose}
       />
       <div className="animate-fade-in relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
@@ -303,32 +305,31 @@ export function MoveFuzzySearch({ moveNames, value, onSelect, onClear, inputRef,
   return (
     <div ref={containerRef} className="relative">
       <input
+        role="button"
         ref={inputRef}
         value={query}
+
+        // onClick={() => setModalOpen(true)}
+        // onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setModalOpen(true); }}
+
         onChange={e => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => setModalOpen(true)}
         placeholder={placeholder ?? (moveNames.length === 0 ? "Select a Pokémon first…" : "Search moves…")}
         disabled={moveNames.length === 0}
         className="cursor-pointer h-24 text-center w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 disabled:cursor-not-allowed disabled:opacity-40"
       />
-      {open && filtered.length > 0 && (
-        <ul className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-950 py-1 shadow-2xl">
-          {filtered.map((name, i) => (
-            <li key={name}>
-              <button
-                onClick={() => handleInlineSelect(name)}
-                className={`group flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-zinc-800/80 ${i === inlineActiveIndex ? "bg-zinc-800/80" : ""
-                  }`}
-              >
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-700 transition group-hover:bg-violet-500" />
-                <span className="capitalize text-zinc-400 transition group-hover:text-white">
-                  {name.replace(/-/g, " ")}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+
+        {modalOpen && (
+          <MovePickerModal
+            moveNames={moveNames}
+            onSelect={handleModalSelect}
+            onClear={onClear}
+            onClose={() => setModalOpen(false)}
+            attackerSprite={attackerSprite}
+            attackerName={attackerName}
+            attackingOnly={attackingOnly}
+          />
+        )}
       {open && query.length >= 2 && filtered.length === 0 && (
         <div className="absolute top-full z-20 mt-1 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-3 text-xs text-zinc-500 shadow-2xl">
           No moves matching &ldquo;{query}&rdquo;

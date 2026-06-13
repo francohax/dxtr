@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { COMPETITIVE_ITEMS, type CompetitiveItem, type ItemEffect } from "~/lib/items";
 import { Tooltip } from "./Tooltip";
@@ -82,7 +83,7 @@ function effectTooltip(item: CompetitiveItem): ReactNode {
   }
 }
 
-// ─── Category helpers ──────────────────────────────────────────────────────────
+// ─── Category helpers ─────────────────────────────────────────────────────────
 
 const CATEGORY_ORDER = ["Type Boosters", "Hold Items", "Berries", "Mega Stones", "Tickets"] as const;
 type ItemCategory = (typeof CATEGORY_ORDER)[number];
@@ -97,7 +98,7 @@ function getItemCategory(item: CompetitiveItem): ItemCategory {
   return "Hold Items";
 }
 
-// ─── Shared item row ───────────────────────────────────────────────────────────
+// ─── Shared item row ──────────────────────────────────────────────────────────
 
 function ItemRow({
   item,
@@ -132,26 +133,32 @@ function ItemRow({
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Item Picker Modal ────────────────────────────────────────────────────────
 
-interface ItemSearchProps {
-  value: CompetitiveItem | null;
-  onChange: (item: CompetitiveItem | null) => void;
-  containerRef?: React.RefObject<HTMLInputElement | null>;
-}
-
-export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
+function ItemPickerModal({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (item: CompetitiveItem) => void;
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
   const [championsOnly, setChampionsOnly] = useState(true);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    function handle(e: KeyboardEvent) {
+      if (e.key === "Escape") onCloseRef.current();
     }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    window.addEventListener("keydown", handle);
+    return () => window.removeEventListener("keydown", handle);
   }, []);
 
   const pool = useMemo(
@@ -162,7 +169,7 @@ export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     const matches = pool.filter(i => i.name.toLowerCase().includes(q));
-    return championsOnly && !query ? matches : matches.slice(0, 20);
+    return championsOnly && !query ? matches : matches.slice(0, 30);
   }, [query, pool, championsOnly]);
 
   const grouped = useMemo(() => {
@@ -176,59 +183,24 @@ export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
     return CATEGORY_ORDER.filter(c => map.has(c)).map(c => ({ label: c, items: map.get(c)! }));
   }, [filtered, championsOnly, query]);
 
-  function handleSelect(item: CompetitiveItem) {
-    onChange(item);
-    setQuery("");
-    setOpen(false);
-  }
-
-  if (value) {
-    return (
-      <Tooltip content={effectTooltip(value)} side="bottom" className="mx-auto w-16 relative">
-        <div className="flex justify-center items-center gap-1 rounded-xl bg-zinc-900 p-1 pt-0">
-          {value.spriteUrl ? (
-            <Image src={value.spriteUrl} alt={value.name} width={42} height={42} className="shrink-0" />
-          ) : (
-            <span className="h-4 w-4 shrink-0 rounded-sm bg-zinc-800 text-[8px] leading-4 text-center text-zinc-600">?</span>
-          )}
-          <div className="absolute -bottom-4 w-full">
-            <small className="text-[8pt] text-zinc-400 w-full mx-auto">{value.name}</small>
-          </div>
-          <button
-            onClick={() => onChange(null)}
-            className="absolute top-1 right-1 shrink-0 text-zinc-600 transition hover:text-red-400"
-            aria-label="Remove item"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      </Tooltip>
-    );
-  }
-
   return (
-    <div ref={wrapperRef} className="relative flex justify-center items-center">
-      <input
-        ref={containerRef}
-        value={query}
-        onChange={e => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder="Item…"
-        className="aspect-square cursor-pointer w-12 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
-      />
-      {open && (
-        <div className="absolute top-full z-50 mt-1 w-72 rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-zinc-800/60 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Items</span>
-              {filtered.length > 0 && (
-                <span className="rounded-full bg-zinc-800 px-1.5 py-px text-[9px] tabular-nums text-zinc-500">
-                  {filtered.length}
-                </span>
-              )}
-            </div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="animate-fade-in flex h-[min(80vh,520px)] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/60 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Held Item</span>
+            {filtered.length > 0 && (
+              <span className="rounded-full bg-zinc-800 px-1.5 py-px text-[9px] tabular-nums text-zinc-500">
+                {filtered.length}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setChampionsOnly(v => !v)}
               className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition ${
@@ -240,36 +212,120 @@ export function ItemSearch({ value, onChange, containerRef }: ItemSearchProps) {
               <span>★</span>
               <span>Champions</span>
             </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+              aria-label="Close"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-          {filtered.length > 0 ? (
-            <div className="max-h-60 overflow-y-auto py-1">
-              {grouped ? (
-                grouped.map(({ label, items }) => (
-                  <div key={label}>
-                    <div className="sticky top-0 flex items-center gap-2 bg-zinc-950 px-3 py-1">
-                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">{label}</span>
-                      <span className="text-[9px] text-zinc-700">({items.length})</span>
-                    </div>
-                    {items.map(item => (
-                      <ItemRow key={item.slug} item={item} onSelect={handleSelect} />
-                    ))}
-                  </div>
-                ))
-              ) : (
-                filtered.map(item => (
-                  <ItemRow key={item.slug} item={item} onSelect={handleSelect} />
-                ))
-              )}
-            </div>
-          ) : (
-            <p className="px-3 py-4 text-center text-[11px] text-zinc-600">
-              {championsOnly
-                ? `No Champions items match "${query}".`
-                : `No items matching "${query}".`}
-            </p>
-          )}
         </div>
-      )}
+
+        {/* Search */}
+        <div className="shrink-0 px-4 py-3">
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search items…"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
+          />
+        </div>
+
+        {/* List */}
+        {filtered.length > 0 ? (
+          <div className="flex-1 overflow-y-auto py-1">
+            {grouped ? (
+              grouped.map(({ label, items }) => (
+                <div key={label}>
+                  <div className="sticky top-0 flex items-center gap-2 bg-zinc-950 px-3 py-1.5">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">{label}</span>
+                    <span className="text-[9px] text-zinc-700">({items.length})</span>
+                  </div>
+                  {items.map(item => (
+                    <ItemRow key={item.slug} item={item} onSelect={onSelect} />
+                  ))}
+                </div>
+              ))
+            ) : (
+              filtered.map(item => (
+                <ItemRow key={item.slug} item={item} onSelect={onSelect} />
+              ))
+            )}
+          </div>
+        ) : (
+          <p className="flex-1 px-3 py-8 text-center text-[11px] text-zinc-600">
+            {championsOnly
+              ? `No Champions items match "${query}".`
+              : `No items matching "${query}".`}
+          </p>
+        )}
+
+      </div>
     </div>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+interface ItemSearchProps {
+  value: CompetitiveItem | null;
+  onChange: (item: CompetitiveItem | null) => void;
+  containerRef?: React.RefObject<HTMLInputElement | null>;
+}
+
+export function ItemSearch({ value, onChange }: ItemSearchProps) {
+  const [open, setOpen] = useState(false);
+
+  function handleSelect(item: CompetitiveItem) {
+    onChange(item);
+    setOpen(false);
+  }
+
+  return (
+    <>
+      {value ? (
+        <Tooltip content={effectTooltip(value)} side="bottom">
+          <div
+            onClick={() => setOpen(true)}
+            className="group flex cursor-pointer items-center gap-2.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 transition hover:border-zinc-500"
+          >
+            {value.spriteUrl ? (
+              <Image src={value.spriteUrl} alt={value.name} width={28} height={28} className="shrink-0" unoptimized />
+            ) : (
+              <span className="h-5 w-5 shrink-0 rounded-sm bg-zinc-800 text-[8px] leading-5 text-center text-zinc-600">?</span>
+            )}
+            <span className="min-w-0 flex-1 truncate text-xs text-zinc-300">{value.name}</span>
+            <button
+              onClick={e => { e.stopPropagation(); onChange(null); }}
+              className="shrink-0 text-zinc-600 transition hover:text-red-400"
+              aria-label="Remove item"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </Tooltip>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-600 transition hover:border-zinc-500 hover:text-zinc-400"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Add item
+        </button>
+      )}
+
+      {open && createPortal(
+        <ItemPickerModal onSelect={handleSelect} onClose={() => setOpen(false)} />,
+        document.body,
+      )}
+    </>
   );
 }

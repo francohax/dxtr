@@ -81,73 +81,102 @@ export function PokemonResearchPanel({
   return (
     <div className="p-4 flex flex-col gap-1">
 
-      <div className="w-full flex gap-1">
-        {/* Header card */}
-        <div className="w-1/2 panel-card flex items-center gap-4 px-4 py-3">
-          <Image
-            src={pokemon.sprite}
-            alt={pokemon.name}
-            width={150}
-            height={150}
-            className="shrink-0 drop-shadow-lg"
-            unoptimized
-          />
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold capitalize leading-tight tracking-tight text-white">
-              {pokemon.name}
-            </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              {pokemon.types.map(t => <TypeBadge key={t} type={t} />)}
-              <span className="ml-1.5 rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">
-                BST {bst}
-              </span>
-            </div>
-          </div>
-          <Button variant="secondary" size="sm" onClick={onOpenPicker}>
+      <div className="relative z-10 w-full flex gap-1">
+        {/* Header card — 2×2 grid */}
+        <div className="relative w-1/2 panel-card p-4">
+
+          {/* Change button — floats top-right, desktop only */}
+          <Button
+            className="absolute top-3 right-3 z-20 hidden md:flex h-7"
+            variant="secondary"
+            size="sm"
+            onClick={onOpenPicker}
+          >
             Change
           </Button>
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+
+            {/* Top-left: Pokemon image — clickable to change */}
+            <button
+              onClick={onOpenPicker}
+              className="group relative flex items-center justify-center rounded-xl"
+              aria-label="Change Pokémon"
+            >
+              <Image
+                src={pokemon.sprite}
+                alt={pokemon.name}
+                width={120}
+                height={120}
+                className="drop-shadow-lg transition-opacity duration-200 group-hover:opacity-50"
+                unoptimized
+              />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <div className="rounded-full bg-black/60 p-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </div>
+              </div>
+            </button>
+
+            {/* Top-right: Held Item — mt clears the absolute Change button on desktop */}
+            <div className="flex flex-col gap-1.5 md:mt-8">
+              <span className="section-label">Held Item</span>
+              <ItemSearch value={item} onChange={onItemChange} />
+            </div>
+
+            {/* Bottom-left: Name, types, BST */}
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg font-bold capitalize leading-tight tracking-tight text-white">
+                {pokemon.name}
+              </h2>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {pokemon.types.map(t => <TypeBadge key={t} type={t} />)}
+                <span className="ml-1 rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">
+                  BST {bst}
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom-right: Nature — z-10 so the picker popover paints above sibling rows */}
+            <div className="relative z-10 flex flex-col gap-1.5">
+              <span className="section-label">Nature</span>
+              <NaturePicker
+                value={nature}
+                onChange={n => onUpdateSlot(slotIndex, { nature: n })}
+              />
+            </div>
+
+          </div>
         </div>
 
-        <div className="w-full md:w-1/2 p-4 ">
+        <div className="w-full md:w-1/2 p-4">
           {/* Type matchups */}
           <TypeMatchupGrid defenderTypes={pokemon.types} />
         </div>
 
       </div>
 
-      {/* Nature + Item row — z-10 so popovers paint above the grid below */}
-      <div className="bg-transparent w-1/2 relative z-10 flex justify-end gap-1">
-        <div className="bg-transparent aspect-square w-24 panel-card px-2 py-2  hover:border-violet-500">
-          <span className="section-label mb-1 block">Held Item</span>
-          <ItemSearch value={item} onChange={onItemChange} />
-        </div>
-        <div className="bg-transparent w-1/2 panel-card px-4 py-2">
-          <span className="section-label mb-2 block">Nature</span>
-          <NaturePicker
-            value={nature}
-            onChange={n => onUpdateSlot(slotIndex, { nature: n })}
-          />
-        </div>
-      </div>
-
       {/* Config grid: left (stats + EVs) | right (moves vertical) */}
       <div className="flex flex-wrap gap-2">
-{/* Left column: moves vertical list */}
-        <div className="panel-card flex flex-col gap-1.5 px-4 py-3">
+        {/* Left column: moves vertical list */}
+        <div className="w-full md:w-1/2 panel-card flex flex-col gap-1.5 px-4 py-3">
           <span className="section-label block">Moves</span>
           <div className="w-full grid md:grid-cols-1 lg:grid-cols-2 gap-1">
-          {moveSlots.map((move, i) => (
-            <MoveFuzzySearch
-              key={i}
-              moveNames={pokemon.moveNames}
-              value={move}
-              onSelect={m => setMove(i, m)}
-              onClear={() => clearMove(i)}
-              attackerSprite={pokemon.sprite}
-              attackerName={pokemon.name}
-              placeholder={`Move ${i + 1}…`}
-            />
-          ))}
+            {moveSlots.map((move, i) => (
+              <MoveFuzzySearch
+                key={i}
+                moveNames={pokemon.moveNames}
+                value={move}
+                onSelect={m => setMove(i, m)}
+                onClear={() => clearMove(i)}
+                attackerSprite={pokemon.sprite}
+                attackerName={pokemon.name}
+                placeholder={`Move ${i + 1}…`}
+              />
+            ))}
           </div>
         </div>
 
@@ -206,7 +235,7 @@ export function PokemonResearchPanel({
           </div>
         </div>
 
-        
+
       </div>
 
     </div>
